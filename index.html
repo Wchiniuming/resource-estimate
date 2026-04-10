@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+    <meta name="description" content="智算资源评估平台">
+    <meta name="theme-color" content="#0f172a">
+    <title>智算资源评估平台</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preload" href="css/main.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link rel="stylesheet" href="css/main.css"></noscript>
+    <script>
+        window.addEventListener('load', function() {
+            setTimeout(function() {
+                var katexLink = document.createElement('link');
+                katexLink.rel = 'stylesheet';
+                katexLink.href = 'https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css';
+                document.head.appendChild(katexLink);
+                
+                var chartScript = document.createElement('script');
+                chartScript.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js';
+                chartScript.async = true;
+                document.head.appendChild(chartScript);
+            }, 100);
+        });
+    </script>
+</head>
+<body class="min-h-screen bg-dark">
+    <div class="bg-animation">
+        <div class="bg-gradient-orb orb-1"></div>
+        <div class="bg-gradient-orb orb-2"></div>
+        <div class="bg-gradient-orb orb-3"></div>
+        <div class="bg-grid"></div>
+    </div>
+
+    <header class="header-glass">
+        <div class="header-content">
+            <div class="header-brand">
+                <div class="header-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"/>
+                    </svg>
+                </div>
+                <div class="header-title-group">
+                    <h1 class="header-title">智算资源评估平台</h1>
+                    <p class="header-subtitle">Intelligent Computing Resource Assessment</p>
+                </div>
+            </div>
+            <div class="header-actions">
+                <button id="reset-params-btn" class="btn-secondary">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                    </svg>
+                    重置
+                </button>
+                <button id="recalculate-btn" class="btn-primary">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/>
+                        <path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    计算
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="main-container">
+        <aside class="panel-left">
+            <div class="panel-glass">
+                <div class="panel-header-mini">
+                    <h2 class="panel-title-mini">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/>
+                        </svg>
+                        参数配置
+                    </h2>
+                </div>
+
+                <nav class="tab-nav-mini">
+                    <button data-tab="model" class="tab-btn-mini active">模型</button>
+                    <button data-tab="hardware" class="tab-btn-mini">硬件</button>
+                    <button data-tab="business" class="tab-btn-mini">业务</button>
+                </nav>
+
+                <div class="tab-contents-mini">
+                    <div id="tab-model" class="tab-content-mini active">
+                        <div class="input-highlight model-select-highlight">
+                            <label class="input-label-small">快速选择模型</label>
+                            <select id="model-select" class="param-input-mini">
+                                <option value="">-- 选择预设模型 --</option>
+                                <optgroup label="Qwen3 Dense">
+                                    <option value="Qwen3-0.6B">Qwen3-0.6B</option>
+                                    <option value="Qwen3-8B">Qwen3-8B</option>
+                                    <option value="Qwen3-32B">Qwen3-32B</option>
+                                    <option value="Qwen3-110B">Qwen3-110B</option>
+                                </optgroup>
+                                <optgroup label="Llama">
+                                    <option value="Llama-2-7B">Llama-2-7B</option>
+                                    <option value="Llama-3-8B">Llama-3-8B</option>
+                                    <option value="Llama-3-70B">Llama-3-70B</option>
+                                </optgroup>
+                                <optgroup label="Kimi">
+                                    <option value="Kimi-V1-8B">Kimi-V1-8B</option>
+                                    <option value="Kimi-V1-32B">Kimi-V1-32B</option>
+                                    <option value="Kimi-V1-72B">Kimi-V1-72B</option>
+                                </optgroup>
+                                <optgroup label="MiniMax">
+                                    <option value="MiniMax-6B">MiniMax-6B</option>
+                                    <option value="MiniMax-21B">MiniMax-21B</option>
+                                </optgroup>
+                                <optgroup label="Other">
+                                    <option value="custom">自定义模型</option>
+                                </optgroup>
+                            </select>
+                        </div>
+
+                        <div class="form-grid-mini">
+                            <div class="form-group-mini">
+                                <label class="input-label-small">总参数量</label>
+                                <input type="number" id="param-N_total" data-param="N_total" class="param-input-mini" step="1e6">
+                            </div>
+                            <div class="form-group-mini">
+                                <label class="input-label-small">隐藏层维度</label>
+                                <input type="number" id="param-H" data-param="H" class="param-input-mini">
+                            </div>
+                            <div class="form-group-mini">
+                                <label class="input-label-small">层数</label>
+                                <input type="number" id="param-L" data-param="L" class="param-input-mini">
+                            </div>
+                            <div class="form-group-mini">
+                                <label class="input-label-small">注意力头数</label>
+                                <input type="number" id="param-A" data-param="A" class="param-input-mini">
+                            </div>
+                            <div class="form-group-mini">
+                                <label class="input-label-small">注意力架构</label>
+                                <select id="param-attentionArch" data-param="attentionArch" class="param-input-mini">
+                                    <option value="MHA">MHA (Multi-Head Attention)</option>
+                                    <option value="GQA">GQA (Grouped-Query Attention)</option>
+                                    <option value="MQA">MQA (Multi-Query Attention)</option>
+                                </select>
+                            </div>
+                            <div class="form-group-mini">
+                                <label class="input-label-small">FFN架构</label>
+                                <select id="param-ffnArch" data-param="ffnArch" class="param-input-mini">
+                                    <option value="Dense">Dense</option>
+                                    <option value="MoE">MoE (Mixture of Experts)</option>
+                                </select>
+                            </div>
+                            <div class="form-group-mini">
+                                <label class="input-label-small">KV头数</label>
+                                <input type="number" id="param-A_kv" data-param="A_kv" class="param-input-mini">
+                            </div>
+                            <div class="form-group-mini">
+                                <label class="input-label-small">词表大小</label>
+                                <input type="number" id="param-V" data-param="V" class="param-input-mini">
+                            </div>
+                             <div class="form-group-mini">
+                                 <label class="input-label-small">中间层维度</label>
+                                 <input type="number" id="param-I" data-param="I" class="param-input-mini">
+                             </div>
+                             <div class="form-group-mini">
+                                 <label class="input-label-small">KV Cache字节数 (D_kv)</label>
+                                 <input type="number" id="param-D_kv" data-param="D_kv" class="param-input-mini" step="0.5" min="0.5" max="8">
+                             </div>
+                             <div class="form-group-mini">
+                                 <label class="input-label-small">激活精度字节数 (D_act)</label>
+                                 <input type="number" id="param-D_act" data-param="D_act" class="param-input-mini" step="0.5" min="0.5" max="8">
+                             </div>
+                             <div class="form-group-mini">
+                                 <label class="input-label-small">注意力头维度 (d_h)</label>
+                                 <input type="number" id="param-d_h" data-param="d_h" class="param-input-mini">
+                             </div>
+                             <div class="form-group-mini">
+                                 <label class="input-label-small">缓存矩阵系数 (C_catch)</label>
+                                 <input type="number" id="param-C_catch" data-param="C_catch" class="param-input-mini" step="0.1" min="0.5" max="2">
+                             </div>
+                             <div class="form-group-mini">
+                                 <label class="input-label-small">量化适配系数 (Q)</label>
+                                 <input type="number" id="param-Q" data-param="Q" class="param-input-mini" step="0.1" min="0.5" max="4">
+                             </div>
+                         </div>
+                         
+                         <!-- MoE参数区域 -->
+                        <div id="moe-params-section" class="moe-params hidden">
+                            <h4 class="moe-title">MoE参数</h4>
+                            <div class="form-grid-mini">
+                                <div class="form-group-mini">
+                                    <label class="input-label-small">专家数量 (E)</label>
+                                    <input type="number" id="param-E" data-param="E" class="param-input-mini" value="8">
+                                </div>
+                                <div class="form-group-mini">
+                                    <label class="input-label-small">激活专家数 (k)</label>
+                                    <input type="number" id="param-k" data-param="k" class="param-input-mini" value="2">
+                                </div>
+                                <div class="form-group-mini">
+                                    <label class="input-label-small">激活参数量</label>
+                                    <input type="number" id="param-N_active" data-param="N_active" class="param-input-mini" step="1e6">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="tab-hardware" class="tab-content-mini">
+                        <div class="input-highlight hardware-select-highlight">
+                            <label class="input-label-small">快速选择服务器</label>
+                            <select id="server-select" class="param-input-mini">
+                                <option value="">-- 选择预设服务器 --</option>
+                                <optgroup label="NVIDIA HGX">
+                                    <option value="HGX-H100">HGX-H100 (8x H100)</option>
+                                    <option value="HGX-A100">HGX-A100 (8x A100)</option>
+                                    <option value="HGX-H800">HGX-H800 (8x H800)</option>
+                                    <option value="HGX-A800">HGX-A800 (8x A800)</option>
+                                </optgroup>
+                                <optgroup label="Huawei">
+                                    <option value="Atlas-900">Atlas-900 (8x Ascend 910)</option>
+                                    <option value="Atlas-800">Atlas-800 (4x Ascend 310)</option>
+                                </optgroup>
+                                <optgroup label="Cambricon">
+                                    <option value="MLU370">MLU370-X8 (8x MLU370)</option>
+                                    <option value="MLU290">MLU290-X8 (8x MLU290)</option>
+                                </optgroup>
+                                <optgroup label="Hygon">
+                                    <option value="K100">K100-AI (4x DCU)</option>
+                                    <option value="Z100">Z100-AI (8x DCU)</option>
+                                </optgroup>
+                                <optgroup label="Other">
+                                    <option value="custom">自定义服务器</option>
+                                </optgroup>
+                            </select>
+                        </div>
+
+                        <div class="form-grid-mini">
+                            <div class="form-group-mini">
+                                <label class="input-label-small">单卡算力 (FLOPS)</label>
+                                <input type="number" id="param-FLOPS_percard" data-param="FLOPS_percard" class="param-input-mini" step="1e12">
+                            </div>
+                            <div class="form-group-mini">
+                                <label class="input-label-small">单卡显存 (GB)</label>
+                                <input type="number" id="param-M_card" data-param="M_card" class="param-input-mini" step="1e9">
+                            </div>
+                            <div class="form-group-mini">
+                                <label class="input-label-small">算力利用率</label>
+                                <input type="number" id="param-U_compute" data-param="U_compute" class="param-input-mini" step="0.01" min="0" max="1">
+                            </div>
+                            <div class="form-group-mini">
+                                <label class="input-label-small">显存利用率</label>
+                                <input type="number" id="param-U_memory" data-param="U_memory" class="param-input-mini" step="0.01" min="0" max="1">
+                            </div>
+                            <div class="form-group-mini">
+                                <label class="input-label-small">NVLink带宽 (GB/s)</label>
+                                <input type="number" id="param-BW_nvlink" data-param="BW_nvlink" class="param-input-mini" step="1e9">
+                            </div>
+                            <div class="form-group-mini">
+                                <label class="input-label-small">网络带宽 (GB/s)</label>
+                                <input type="number" id="param-BW_net" data-param="BW_net" class="param-input-mini" step="1e9">
+                            </div>
+                            <div class="form-group-mini">
+                                <label class="input-label-small">每节点GPU数</label>
+                                <input type="number" id="param-n_gpu_per_node" data-param="n_gpu_per_node" class="param-input-mini">
+                            </div>
+                             <div class="form-group-mini">
+                                 <label class="input-label-small">跨节点部署</label>
+                                 <select id="param-is_cross_node" data-param="is_cross_node" class="param-input-mini">
+                                     <option value="false">否</option>
+                                     <option value="true">是</option>
+                                 </select>
+                             </div>
+                             <div class="form-group-mini">
+                                 <label class="input-label-small">计算效率系数 (epsilon)</label>
+                                 <input type="number" id="param-epsilon" data-param="epsilon" class="param-input-mini" step="0.01" min="0.7" max="0.95">
+                             </div>
+                             <div class="form-group-mini">
+                                 <label class="input-label-small">内存碎片系数 (theta)</label>
+                                 <input type="number" id="param-theta" data-param="theta" class="param-input-mini" step="0.01" min="0.05" max="0.3">
+                             </div>
+                         </div>
+                     </div>
+
+                    <div id="tab-business" class="tab-content-mini">
+                        <div class="form-grid-mini">
+                            <div class="form-group-mini">
+                                <label class="input-label-small">目标QPS</label>
+                                <input type="number" id="param-QPS_target" data-param="QPS_target" class="param-input-mini" step="0.1">
+                            </div>
+                            <div class="form-group-mini">
+                                <label class="input-label-small">输入序列长度</label>
+                                <input type="number" id="param-S" data-param="S" class="param-input-mini">
+                            </div>
+                            <div class="form-group-mini">
+                                <label class="input-label-small">输出序列长度</label>
+                                <input type="number" id="param-s_out" data-param="s_out" class="param-input-mini">
+                            </div>
+                             <div class="form-group-mini">
+                                 <label class="input-label-small">Batch Size</label>
+                                 <input type="number" id="param-B" data-param="B" class="param-input-mini">
+                             </div>
+                             <div class="form-group-mini">
+                                 <label class="input-label-small">QPS冗余系数</label>
+                                 <input type="number" id="param-QPS_redundancy" data-param="QPS_redundancy" class="param-input-mini" step="0.1" min="0" max="10">
+                             </div>
+                             <div class="form-group-mini">
+                                 <label class="input-label-small">序列总长度 (T)</label>
+                                 <input type="number" id="param-T" data-param="T" class="param-input-mini" readonly>
+                             </div>
+                             <div class="form-group-mini">
+                                 <label class="input-label-small">QPS冗余值 (e)</label>
+                                 <input type="number" id="param-e" data-param="e" class="param-input-mini" step="0.1" min="0" max="10" readonly>
+                             </div>
+                         </div>
+                     </div>
+                </div>
+            </div>
+        </aside>
+
+        <section class="panel-right">
+            <div class="result-card">
+                <h2 class="card-title">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"/>
+                    </svg>
+                    GPU数量估算
+                </h2>
+                <div id="gpu-count-cards" class="gpu-cards-grid"></div>
+            </div>
+
+            <div class="result-card">
+                <h2 class="card-title">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+                    </svg>
+                    计算详情
+                </h2>
+                <div id="intermediate-results" class="intermediate-results"></div>
+            </div>
+
+            <div class="result-card">
+                <h2 class="card-title">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"/>
+                    </svg>
+                    可视化分析
+                </h2>
+                <div class="charts-grid">
+                    <div class="chart-container">
+                        <h3 class="chart-title">GPU数量对比</h3>
+                        <div class="chart-wrapper">
+                            <canvas id="gpu-count-chart"></canvas>
+                        </div>
+                    </div>
+                    <div class="chart-container">
+                        <h3 class="chart-title">显存分布</h3>
+                        <div class="chart-wrapper">
+                            <canvas id="memory-breakdown-chart"></canvas>
+                        </div>
+                    </div>
+                    <div class="chart-container full-width">
+                        <h3 class="chart-title">QPS对比</h3>
+                        <div class="chart-wrapper">
+                            <canvas id="qps-comparison-chart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <section class="formula-section">
+        <div class="formula-container">
+            <div class="formula-header">
+                <h2 class="formula-title">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+                    </svg>
+                    公式展示与维护
+                </h2>
+                <div class="formula-arch-badge" id="current-arch-badge">MHA + Dense</div>
+            </div>
+            
+            <div class="formula-toolbar">
+                <div class="formula-actions-left">
+                    <button id="edit-formula-btn" class="btn-formula">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                        </svg>
+                        编辑
+                    </button>
+                    <button id="save-formula-btn" class="btn-formula btn-formula-primary">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/>
+                        </svg>
+                        保存
+                    </button>
+                </div>
+                <div class="formula-actions-right">
+                    <select id="formula-version-select" class="formula-version-select">
+                        <option value="">选择版本...</option>
+                    </select>
+                    <button id="rollback-formula-btn" class="btn-formula btn-formula-warning">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/>
+                        </svg>
+                        回滚
+                    </button>
+                </div>
+            </div>
+            
+            <div id="formula-display" class="formula-display"></div>
+        </div>
+    </section>
+
+    <footer class="footer-glass">
+        <p>2026 智算资源评估平台</p>
+    </footer>
+
+    <script type="module" src="js/modules/formula-renderer.js"></script>
+    <script type="module" src="js/app.js"></script>
+</body>
+</html>
