@@ -46,7 +46,7 @@ body {
   height: 100%;
   z-index: -1;
   overflow: hidden;
-  background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 50%, #0c1220 100%);
+  background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 50%, var(--bg-secondary) 100%);
   contain: layout style paint;
   transform: translateZ(0);
   backface-visibility: hidden;
@@ -73,7 +73,7 @@ body {
 .orb-2 {
   width: 300px;
   height: 300px;
-  background: radial-gradient(circle, #8b5cf6 0%, transparent 70%);
+  background: radial-gradient(circle, var(--accent-secondary) 0%, transparent 70%);
   bottom: -50px;
   left: -50px;
   animation: float 25s ease-in-out infinite;
@@ -274,23 +274,9 @@ body {
 .panel-left {
   position: sticky;
   top: 100px;
-  height: calc(100vh - 140px);
-  overflow-y: auto;
-  overflow-x: hidden;
-}
-
-.panel-left::-webkit-scrollbar {
-  width: 6px;
-}
-
-.panel-left::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.2);
-  border-radius: 3px;
-}
-
-.panel-left::-webkit-scrollbar-thumb {
-  background: var(--accent-tertiary);
-  border-radius: 3px;
+  height: auto;
+  max-height: none;
+  overflow: visible;
 }
 
 .panel-glass {
@@ -358,29 +344,14 @@ body {
 
 /* ===== Tab Contents ===== */
 .tab-contents-mini {
-  max-height: calc(100vh - 300px);
-  overflow-y: auto;
-  overflow-x: hidden;
+  max-height: none;
+  overflow: visible;
   padding: var(--space-md);
   width: 100%;
 }
 
 .tab-contents-mini * {
   max-width: 100%;
-}
-
-.tab-contents-mini::-webkit-scrollbar {
-  width: 6px;
-}
-
-.tab-contents-mini::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.2);
-  border-radius: 3px;
-}
-
-.tab-contents-mini::-webkit-scrollbar-thumb {
-  background: var(--accent-tertiary);
-  border-radius: 3px;
 }
 
 .tab-content-mini {
@@ -445,28 +416,40 @@ body {
   margin-bottom: var(--space-sm);
 }
 
+/* ===== Parameter Groups ===== */
+.param-group {
+  margin-bottom: var(--space-lg);
+  padding: var(--space-md);
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+}
+
+.param-group-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--accent-primary);
+  margin-bottom: var(--space-md);
+  padding-bottom: var(--space-sm);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.param-group-title svg {
+  width: 16px;
+  height: 16px;
+}
+
 /* ===== Right Panel - Results ===== */
 .panel-right {
   display: flex;
   flex-direction: column;
   gap: var(--space-lg);
-  height: calc(100vh - 140px);
-  overflow-y: auto;
-  overflow-x: hidden;
-}
-
-.panel-right::-webkit-scrollbar {
-  width: 6px;
-}
-
-.panel-right::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.2);
-  border-radius: 3px;
-}
-
-.panel-right::-webkit-scrollbar-thumb {
-  background: var(--accent-tertiary);
-  border-radius: 3px;
+  height: auto;
+  max-height: none;
+  overflow: visible;
 }
 
 .result-card {
@@ -514,7 +497,7 @@ body {
 /* ===== GPU Cards Grid ===== */
 .gpu-cards-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: var(--space-md);
   width: 100%;
   overflow: hidden;
@@ -668,26 +651,10 @@ body {
 }
 
 .formula-display {
-  max-height: 400px;
-  overflow-y: auto;
   padding: var(--space-md);
   background: rgba(0, 0, 0, 0.2);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
-}
-
-.formula-display::-webkit-scrollbar {
-  width: 6px;
-}
-
-.formula-display::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.2);
-  border-radius: 3px;
-}
-
-.formula-display::-webkit-scrollbar-thumb {
-  background: var(--accent-tertiary);
-  border-radius: 3px;
 }
 
 /* ===== Footer ===== */
@@ -712,6 +679,44 @@ body {
 @container (max-width: 400px) {
   .gpu-cards-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+/* GPU Card text overflow protection */
+.gpu-card {
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  hyphens: auto;
+  min-width: 0;
+}
+
+.gpu-card .detail-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.gpu-card .detail-value {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.gpu-cards-grid {
+  grid-template-columns: repeat(4, 1fr) !important;
+}
+
+@media (max-width: 1200px) {
+  .gpu-cards-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .gpu-cards-grid {
+    grid-template-columns: 1fr !important;
   }
 }
 

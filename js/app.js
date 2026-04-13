@@ -17,12 +17,19 @@ import { getServer, fillServerParams } from './modules/hardware-library.js';
 let stateManager;
 let chartManager;
 
+// 计算结果缓存
+let lastCalculation = null;
+let lastParams = null;
+
+// 事件监听器引用（用于清理）
+const eventListeners = new Map();
+
 document.addEventListener('DOMContentLoaded', () => {
     initializeStateManager();
     initializeEventHandlers();
     initializeCharts();
     initializeFormulaDisplay();
-    
+
     runInitialCalculation();
 });
 
@@ -135,6 +142,7 @@ function initializeEventHandlers() {
                     
                     stateManager.batchUpdate(params);
                     syncFormWithState();
+                    stateManager.calculate();
                 }
             } else if (modelName === 'custom') {
                 stateManager.batchUpdate({
@@ -173,6 +181,7 @@ function initializeEventHandlers() {
                     
                     stateManager.batchUpdate(params);
                     syncFormWithState();
+                    stateManager.calculate();
                 }
             } else if (serverName === 'custom') {
                 stateManager.batchUpdate({
@@ -252,7 +261,7 @@ function switchTab(tab) {
 }
 
 function handleParamsChanged(data) {
-    const { key, value } = data;
+    const { key, value, keys, changedParams } = data;
     const input = document.querySelector(`[data-param="${key}"]`);
     if (input && input.value !== String(value)) {
         if (input.type === 'checkbox') {
@@ -262,8 +271,12 @@ function handleParamsChanged(data) {
         }
     }
     
-    // Update formula display when architecture or parallel strategy changes
-    if (['attentionArch', 'ffnArch', 'n_tp', 'n_pp', 'n_ep'].includes(key)) {
+    const archOrParallelKeys = ['attentionArch', 'ffnArch', 'n_tp', 'n_pp', 'n_ep'];
+    const hasArchOrParallelChange = keys ? keys.some(k => archOrParallelKeys.includes(k)) : archOrParallelKeys.includes(key);
+    const paramsInChangedParams = changedParams ? Object.keys(changedParams).filter(k => archOrParallelKeys.includes(k)) : [];
+    const shouldUpdate = hasArchOrParallelChange || paramsInChangedParams.length > 0;
+    
+    if (shouldUpdate) {
         const params = stateManager.getAllParams();
         updateFormulaDisplay(params);
         updateArchBadge(params);
@@ -287,19 +300,14 @@ function handleResultsChanged(results) {
         intermediateContainer.appendChild(intermediateResults);
     }
     
-    // Highlight formulas based on current configuration
-    if (results.config) {
-        highlightCurrentFormulas(results.config);
-    }
-
-    // Update charts
+    // Update charts (formula highlighting removed)
     if (chartManager && results.isValid) {
         // Update GPU count bar chart
         if (results.flops && results.memory && results.bandwidth) {
             chartManager.createGPUCountBarChart('gpu-count-chart', {
-                flops: results.flops.gpuCount,
-                memory: results.memory.gpuCount,
-                bandwidth: results.bandwidth.gpuCount
+                flops: results.flops.limit?.gpuCount || 0,
+                memory: results.memory.cacheLimit?.gpuCount || 0,
+                bandwidth: results.bandwidth.bwLimit?.gpuCount || 0
             });
         }
         
@@ -312,14 +320,6 @@ function handleResultsChanged(results) {
             });
         }
         
-        // Update QPS comparison chart
-        if (results.bandwidth) {
-            chartManager.createQPSComparisonChart('qps-comparison-chart', {
-                target: results.bandwidth.qpsTarget || 0,
-                withRedundancy: results.bandwidth.qpsWithRedundancy || 0,
-                max: results.bandwidth.qpsMax || 0
-            });
-        }
     }
 }
 
@@ -349,11 +349,19 @@ function handleError(error) {
 function performCalculation() {
     try {
         const params = stateManager.getAllParams();
-        
+
+        // 计算结果缓存 - 检查参数是否变化
+        const currentParams = JSON.stringify(params);
+        if (currentParams === lastParams && lastCalculation) {
+            // 参数未变，使用缓存结果
+            stateManager.setResults(lastCalculation);
+            return;
+        }
+
         const flopsResult = FLOPsEngine.calculate(params, params.attentionArch, params.ffnArch);
         const memoryResult = MemoryEngine.calculate(params, params.attentionArch, params.ffnArch);
         const bandwidthResult = BandwidthEngine.calculate(params, params.ffnArch);
-        
+
         const finalGPUCount = Math.max(
             flopsResult.limit.gpuCount,
             memoryResult.cacheLimit.gpuCount,
@@ -361,51 +369,30 @@ function performCalculation() {
         );
         
         const results = {
-            flops: {
-                gpuCount: flopsResult.limit.gpuCount,
-                totalFLOPsRequired: flopsResult.total.totalFLOPs,
-                FLOPS_percard: flopsResult.limit.FLOPS_percard,
-                prefill: flopsResult.perSample.prefill,
-                decode: flopsResult.perSample.decode,
-                flopsPerSample: flopsResult.perSample.total
-            },
-            memory: {
-                gpuCount: memoryResult.cacheLimit.gpuCount,
-                modelWeight: memoryResult.modelWeight,
-                activation: memoryResult.activation,
-                totalKVWithQPS: memoryResult.kv.totalWithQPS,
-                kvSingleRequest: memoryResult.kv.perRequest
-            },
-            bandwidth: {
-                gpuCount: bandwidthResult.bwLimit.gpuCount,
-                V_high: bandwidthResult.highFreq,
-                V_low: bandwidthResult.lowFreq,
-                qpsMax: bandwidthResult.qpsMax.qpsMax,
-                qpsHighFreq: bandwidthResult.qpsMax.qpsHighFreq,
-                qpsLowFreq: bandwidthResult.qpsMax.qpsLowFreq,
-                qpsTarget: bandwidthResult.bwLimit.qpsTarget,
-                qpsWithRedundancy: bandwidthResult.bwLimit.qpsWithRedundancy
-            },
+            flops: flopsResult,
+            memory: memoryResult,
+            bandwidth: bandwidthResult,
+            finalGPUCount,
+            isValid: true,
             config: {
                 attentionArch: params.attentionArch,
-                ffnArch: params.ffnArch,
-                n_tp: params.n_tp,
-                n_pp: params.n_pp,
-                n_ep: params.n_ep
-            },
-            finalGPUCount,
-            isValid: true
+                ffnArch: params.ffnArch
+            }
         };
-        
+
+        lastCalculation = results;
+        lastParams = currentParams;
+
         stateManager.setResults(results);
-        
-    } catch (error) {
-        console.error('Calculation error:', error);
-        stateManager.setResults({
-            isValid: false,
-            error: error.message
+    } catch (err) {
+        console.error('Calculation error:', err);
+        stateManager.emit('error', {
+            key: 'calculation',
+            message: err.message
         });
         stateManager.setCalculating(false);
+        stateManager.isCalculating = false;
+        stateManager.processCalculateQueue();
     }
 }
 
@@ -415,49 +402,8 @@ function runInitialCalculation() {
     }, 100);
 }
 
-/**
- * 根据当前配置高亮相应的公式
- * @param {Object} config - 配置对象
- */
 function highlightCurrentFormulas(config) {
-    const { attentionArch, ffnArch } = config;
-    
-    // 高亮当前架构对应的公式
-    if (attentionArch && ffnArch) {
-        // 根据架构高亮对应的FLOPs公式
-        const flopsSection = document.getElementById('formula-section-flops');
-        if (flopsSection) {
-            // 移除所有高亮
-            flopsSection.querySelectorAll('.formula-item').forEach(item => {
-                item.classList.remove('bg-green-50', 'border-green-300');
-                item.classList.add('bg-gray-50', 'border-gray-200');
-            });
-        }
-        
-        // 高亮显存维度的KV Cache公式
-        const memorySection = document.getElementById('formula-section-memory');
-        if (memorySection) {
-            memorySection.querySelectorAll('.formula-item').forEach(item => {
-                const label = item.querySelector('.text-sm.font-medium')?.textContent;
-                if (label === 'KV Cache显存' && attentionArch) {
-                    item.classList.remove('bg-gray-50', 'border-gray-200');
-                    item.classList.add('bg-green-50', 'border-green-300');
-                }
-            });
-        }
-        
-        // 高亮带宽维度的高频公式
-        const bandwidthSection = document.getElementById('formula-section-bandwidth');
-        if (bandwidthSection) {
-            bandwidthSection.querySelectorAll('.formula-item').forEach(item => {
-                const label = item.querySelector('.text-sm.font-medium')?.textContent;
-                if (label === '高频通信量 (NVLink/HCCS)' && ffnArch) {
-                    item.classList.remove('bg-gray-50', 'border-gray-200');
-                    item.classList.add('bg-green-50', 'border-green-300');
-                }
-            });
-        }
-    }
+    return;
 }
 
 /**
@@ -470,10 +416,6 @@ function initializeFormulaEventHandlers() {
         return;
     }
 
-    const editBtn = document.getElementById('edit-formula-btn');
-    const saveBtn = document.getElementById('save-formula-btn');
-    const versionSelect = document.getElementById('formula-version-select');
-    const rollbackBtn = document.getElementById('rollback-formula-btn');
     const importBtn = document.getElementById('import-formula-btn');
     const exportBtn = document.getElementById('export-formula-btn');
     const importInput = document.getElementById('formula-import-input');
@@ -485,6 +427,8 @@ function initializeFormulaEventHandlers() {
     const saveConfirmBtn = document.getElementById('save-formula-confirm-btn');
 
     const categorySelect = document.getElementById('formula-category-select');
+    const versionSelect = document.getElementById('formula-version-select');
+    const rollbackBtn = document.getElementById('rollback-formula-btn');
     const formulaTextarea = document.getElementById('formula-textarea');
     const versionDescInput = document.getElementById('formula-version-desc');
     const formulaPreview = document.getElementById('formula-preview');
@@ -549,14 +493,6 @@ function initializeFormulaEventHandlers() {
         return '';
     }
 
-    if (editBtn) {
-        editBtn.addEventListener('click', openModal);
-    }
-
-    if (saveBtn) {
-        saveBtn.addEventListener('click', openModal);
-    }
-
     if (closeModalBtn) {
         closeModalBtn.addEventListener('click', closeModal);
     }
@@ -615,10 +551,6 @@ function initializeFormulaEventHandlers() {
                 alert('保存失败: ' + err.message);
             }
         });
-    }
-
-    if (versionSelect) {
-        versionSelect.addEventListener('change', updateVersionSelect);
     }
 
     if (rollbackBtn) {
@@ -680,5 +612,7 @@ window.ResourceEstimateApp = {
     chartManager,
     performCalculation,
     updateFormulaDisplay,
-    highlightCurrentFormulas
+    highlightCurrentFormulas,
+    get lastCalculation() { return lastCalculation; },
+    get lastParams() { return lastParams; }
 };

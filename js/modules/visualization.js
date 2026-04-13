@@ -129,32 +129,47 @@ export class ResultRenderer {
             unit = '',
             color = 'blue',
             subtitle = '',
-            details = []
+            details = [],
+            customStyles = {},
+            titleColor = '',
+            valueColor = ''
         } = options;
-        
+
         const colorClasses = {
             blue: 'bg-[rgba(0,212,255,0.1)] border-[rgba(0,212,255,0.3)] text-[var(--text-primary)]',
             red: 'bg-[rgba(255,99,132,0.1)] border-[rgba(255,99,132,0.3)] text-[var(--text-primary)]',
             green: 'bg-[rgba(75,192,192,0.1)] border-[rgba(75,192,192,0.3)] text-[var(--text-primary)]',
             purple: 'bg-[rgba(139,92,246,0.1)] border-[rgba(139,92,246,0.3)] text-[var(--text-primary)]',
             orange: 'bg-[rgba(255,159,64,0.1)] border-[rgba(255,159,64,0.3)] text-[var(--text-primary)]',
-            gray: 'bg-[rgba(148,163,184,0.1)] border-[rgba(148,163,184,0.3)] text-[var(--text-secondary)]'
+            gray: 'bg-[rgba(148,163,184,0.1)] border-[rgba(148,163,184,0.3)] text-[var(--text-secondary)]',
+            cyan: 'bg-[rgba(0,212,255,0.1)] border-[rgba(0,212,255,0.3)] text-[var(--text-primary)]',
+            violet: 'bg-[rgba(139,92,246,0.1)] border-[rgba(139,92,246,0.3)] text-[var(--text-primary)]',
+            emerald: 'bg-[rgba(16,185,129,0.1)] border-[rgba(16,185,129,0.3)] text-[var(--text-primary)]',
+            amber: 'bg-[rgba(245,158,11,0.1)] border-[rgba(245,158,11,0.3)] text-[var(--text-primary)]'
         };
-        
+
         const card = document.createElement('div');
         card.className = `rounded-lg border p-4 ${colorClasses[color] || colorClasses.blue}`;
-        
+
+        // Apply custom styles if provided
+        if (customStyles && Object.keys(customStyles).length > 0) {
+            Object.assign(card.style, customStyles);
+        }
+
+        const titleStyle = titleColor ? `color: ${titleColor};` : 'color: var(--text-secondary);';
+        const valueStyle = valueColor ? `color: ${valueColor};` : 'color: var(--text-primary);';
+
         let html = `
             <div class="flex items-center justify-between mb-2">
-                <h3 class="text-sm font-medium" style="color: var(--text-secondary);">${title}</h3>
+                <h3 class="text-sm font-medium" style="${titleStyle}">${title}</h3>
                 ${subtitle ? `<span class="text-xs" style="color: var(--text-tertiary);">${subtitle}</span>` : ''}
             </div>
             <div class="flex items-baseline gap-1">
-                <span class="text-3xl font-bold" style="color: var(--text-primary);">${value}</span>
+                <span class="text-3xl font-bold" style="${valueStyle}">${value}</span>
                 ${unit ? `<span class="text-lg" style="color: var(--text-secondary);">${unit}</span>` : ''}
             </div>
         `;
-        
+
         if (details && details.length > 0) {
             html += `<div class="mt-3 pt-3 space-y-1" style="border-top: 1px solid rgba(148, 163, 184, 0.2);">`;
             details.forEach(detail => {
@@ -167,7 +182,7 @@ export class ResultRenderer {
             });
             html += '</div>';
         }
-        
+
         card.innerHTML = html;
         return card;
     }
@@ -178,75 +193,100 @@ export class ResultRenderer {
      * @returns {HTMLElement} Container with GPU count cards
      */
     static createGPUCountSummary(results) {
-        const container = document.createElement('div');
-        container.className = 'grid grid-cols-2 lg:grid-cols-4 gap-4';
-        
+        // Return a document fragment to append cards directly to the container
+        // without creating an extra wrapper div
+        const fragment = document.createDocumentFragment();
+
         const { flops, memory, bandwidth } = results;
-        
-        // FLOPs limit card
+
+        // FLOPs limit card - Cyan/Blue theme (#00d4ff)
         const flopsCard = this.createResultCard({
             title: '算力维度',
-            value: flops?.gpuCount || 0,
+            value: flops?.limit?.gpuCount || 0,
             unit: 'GPU',
-            color: 'blue',
+            color: 'cyan',
             subtitle: 'FLOPs-limit',
             details: [
-                { label: '所需FLOPs', value: NumberFormatter.formatFLOPs(flops?.totalFLOPsRequired || 0) },
-                { label: '单卡FLOPs', value: NumberFormatter.formatFLOPs(flops?.FLOPS_percard || 0) }
-            ]
+                { label: '所需FLOPs', value: NumberFormatter.formatFLOPs(flops?.limit?.totalFLOPsRequired || 0) },
+                { label: '单卡FLOPs', value: NumberFormatter.formatFLOPs(flops?.limit?.FLOPS_percard || 0) }
+            ],
+            customStyles: {
+                borderLeft: '3px solid #00d4ff',
+                background: 'linear-gradient(135deg, rgba(0, 212, 255, 0.08) 0%, transparent 60%)'
+            },
+            titleColor: '#00d4ff',
+            valueColor: '#00d4ff'
         });
-        
-        // CACHE limit card
+
+        // CACHE limit card - Purple/Violet theme (#8b5cf6)
         const cacheCard = this.createResultCard({
             title: '显存维度',
-            value: memory?.gpuCount || 0,
+            value: memory?.cacheLimit?.gpuCount || 0,
             unit: 'GPU',
-            color: 'red',
+            color: 'violet',
             subtitle: 'CACHE-limit',
             details: [
-                { label: '模型权重', value: NumberFormatter.formatBytes(memory?.modelWeight || 0) },
-                { label: 'KV缓存', value: NumberFormatter.formatBytes(memory?.totalKVWithQPS || 0) }
-            ]
+                { label: '模型权重', value: NumberFormatter.formatBytes(memory?.cacheLimit?.modelWeight || 0) },
+                { label: 'KV缓存', value: NumberFormatter.formatBytes(memory?.cacheLimit?.totalKVWithQPS || 0) }
+            ],
+            customStyles: {
+                borderLeft: '3px solid #8b5cf6',
+                background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.08) 0%, transparent 60%)'
+            },
+            titleColor: '#8b5cf6',
+            valueColor: '#8b5cf6'
         });
-        
-        // BW limit card
+
+        // BW limit card - Green/Teal theme (#10b981)
         const bwCard = this.createResultCard({
             title: '带宽维度',
-            value: bandwidth?.gpuCount || 0,
+            value: bandwidth?.bwLimit?.gpuCount || 0,
             unit: 'GPU',
-            color: 'green',
+            color: 'emerald',
             subtitle: 'BW-limit',
             details: [
-                { label: '高频通信', value: NumberFormatter.formatBytes(bandwidth?.V_high || 0) },
-                { label: '低频通信', value: NumberFormatter.formatBytes(bandwidth?.V_low || 0) }
-            ]
+                { label: '高频通信', value: NumberFormatter.formatBytes(bandwidth?.bwLimit?.V_high || 0) },
+                { label: '低频通信', value: NumberFormatter.formatBytes(bandwidth?.bwLimit?.V_low || 0) }
+            ],
+            customStyles: {
+                borderLeft: '3px solid #10b981',
+                background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, transparent 60%)'
+            },
+            titleColor: '#10b981',
+            valueColor: '#10b981'
         });
-        
-        // Final recommendation card
+
+        // Final recommendation card - Gold/Yellow theme (#f59e0b)
         const finalGPUCount = Math.max(
-            flops?.gpuCount || 0,
-            memory?.gpuCount || 0,
-            bandwidth?.gpuCount || 0
+            flops?.limit?.gpuCount || 0,
+            memory?.cacheLimit?.gpuCount || 0,
+            bandwidth?.bwLimit?.gpuCount || 0
         );
         const finalCard = this.createResultCard({
             title: '最终推荐',
             value: finalGPUCount,
             unit: 'GPU',
-            color: 'purple',
+            color: 'amber',
             subtitle: 'N_gpu = max(...)',
             details: [
-                { label: '算力维度', value: `${flops?.gpuCount || 0} GPU` },
-                { label: '显存维度', value: `${memory?.gpuCount || 0} GPU` },
-                { label: '带宽维度', value: `${bandwidth?.gpuCount || 0} GPU` }
-            ]
+                { label: '算力维度', value: `${flops?.limit?.gpuCount || 0} GPU` },
+                { label: '显存维度', value: `${memory?.cacheLimit?.gpuCount || 0} GPU` },
+                { label: '带宽维度', value: `${bandwidth?.bwLimit?.gpuCount || 0} GPU` }
+            ],
+            customStyles: {
+                borderLeft: '3px solid #f59e0b',
+                background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.08) 0%, transparent 60%)'
+            },
+            titleColor: '#f59e0b',
+            valueColor: '#f59e0b'
         });
-        
-        container.appendChild(flopsCard);
-        container.appendChild(cacheCard);
-        container.appendChild(bwCard);
-        container.appendChild(finalCard);
-        
-        return container;
+
+        fragment.appendChild(flopsCard);
+        fragment.appendChild(cacheCard);
+        fragment.appendChild(bwCard);
+        fragment.appendChild(finalCard);
+
+        return fragment;
     }
     
     /**
@@ -264,24 +304,24 @@ export class ResultRenderer {
         if (flops) {
             const flopsSection = document.createElement('div');
             flopsSection.className = 'result-card';
-            flopsSection.style.cssText = 'padding: var(--space-md); margin-bottom: var(--space-md);';
+            flopsSection.style.cssText = 'padding: var(--space-md); margin-bottom: var(--space-md); border-left: 4px solid #00d4ff;';
             flopsSection.innerHTML = `
-                <h4 class="text-sm font-semibold mb-3 flex items-center" style="color: var(--text-primary);">
-                    <span class="w-2 h-2 bg-blue-500 rounded-full mr-2"></span>
-                    FLOPs 计算详情
-                </h4>
+                <h3 class="text-lg font-bold mb-4 flex items-center" style="color: #00d4ff;">
+                    <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20"><path d="M3.293 9.707a1 1 0 010-1.414l6-6a1 1 0 011.414 0l6 6a1 1 0 01-1.414 1.414L11 5.414V17a1 1 0 11-2 0V5.414L4.707 9.707a1 1 0 01-1.414 0z"/></svg>
+                    算力限制 (FLOPs)
+                </h3>
                 <div class="grid grid-cols-2 gap-3 text-sm">
                     <div class="flex justify-between">
                         <span style="color: var(--text-tertiary);">Prefill FLOPs:</span>
-                        <span class="font-medium" style="color: var(--text-primary);">${NumberFormatter.formatFLOPs(flops.prefill || 0)}</span>
+                        <span class="font-medium" style="color: var(--text-primary);">${NumberFormatter.formatFLOPs(flops?.perSample?.prefill || 0)}</span>
                     </div>
                     <div class="flex justify-between">
                         <span style="color: var(--text-tertiary);">Decode FLOPs:</span>
-                        <span class="font-medium" style="color: var(--text-primary);">${NumberFormatter.formatFLOPs(flops.decode || 0)}</span>
+                        <span class="font-medium" style="color: var(--text-primary);">${NumberFormatter.formatFLOPs(flops?.perSample?.decode || 0)}</span>
                     </div>
-                    <div class="flex justify-between col-span-2 pt-2" style="border-top: 1px solid var(--border-color);">
-                        <span style="color: var(--text-tertiary);">单样本总FLOPs:</span>
-                        <span class="font-medium" style="color: var(--accent-primary);">${NumberFormatter.formatFLOPs(flops.flopsPerSample || 0)}</span>
+                    <div class="flex justify-between col-span-2 pt-3 mt-1" style="border-top: 1px solid var(--border-color);">
+                        <span class="font-semibold" style="color: var(--text-primary);">单样本总FLOPs:</span>
+                        <span class="font-bold text-lg" style="color: #00d4ff;">${NumberFormatter.formatFLOPs(flops?.perSample?.total || 0)}</span>
                     </div>
                 </div>
             `;
@@ -292,30 +332,30 @@ export class ResultRenderer {
         if (memory) {
             const memorySection = document.createElement('div');
             memorySection.className = 'result-card';
-            memorySection.style.cssText = 'padding: var(--space-md); margin-bottom: var(--space-md);';
+            memorySection.style.cssText = 'padding: var(--space-md); margin-bottom: var(--space-md); border-left: 4px solid #8b5cf6;';
             memorySection.innerHTML = `
-                <h4 class="text-sm font-semibold mb-3 flex items-center" style="color: var(--text-primary);">
-                    <span class="w-2 h-2 bg-red-500 rounded-full mr-2"></span>
-                    显存计算详情
-                </h4>
+                <h3 class="text-lg font-bold mb-4 flex items-center" style="color: #8b5cf6;">
+                    <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20"><path d="M2 5a2 2 0 012-2h12a2 2 0 012 2v10a2 2 0 01-2 2H4a2 2 0 01-2-2V5zm3 1h10v2H5V6zm0 3h10v2H5V9zm0 3h5v2H5v-2z"/></svg>
+                    显存限制 (Memory)
+                </h3>
                 <div class="space-y-3">
                     <div class="grid grid-cols-3 gap-2 text-sm">
-                        <div class="rounded p-2 text-center" style="background: rgba(0, 0, 0, 0.2);">
+                        <div class="rounded p-2 text-center" style="background: rgba(139, 92, 246, 0.1); border: 1px solid rgba(139, 92, 246, 0.3);">
                             <div style="color: var(--text-tertiary); font-size: 0.75rem; margin-bottom: 0.25rem;">模型权重</div>
-                            <div class="font-medium" style="color: var(--text-primary);">${NumberFormatter.formatBytes(memory.modelWeight || 0)}</div>
+                            <div class="font-medium" style="color: #8b5cf6;">${NumberFormatter.formatBytes(memory.modelWeight || 0)}</div>
                         </div>
-                        <div class="rounded p-2 text-center" style="background: rgba(0, 0, 0, 0.2);">
+                        <div class="rounded p-2 text-center" style="background: rgba(139, 92, 246, 0.1); border: 1px solid rgba(139, 92, 246, 0.3);">
                             <div style="color: var(--text-tertiary); font-size: 0.75rem; margin-bottom: 0.25rem;">激活值</div>
-                            <div class="font-medium" style="color: var(--text-primary);">${NumberFormatter.formatBytes(memory.activation || 0)}</div>
+                            <div class="font-medium" style="color: #8b5cf6;">${NumberFormatter.formatBytes(memory.activation || 0)}</div>
                         </div>
-                        <div class="rounded p-2 text-center" style="background: rgba(0, 0, 0, 0.2);">
+                        <div class="rounded p-2 text-center" style="background: rgba(139, 92, 246, 0.1); border: 1px solid rgba(139, 92, 246, 0.3);">
                             <div style="color: var(--text-tertiary); font-size: 0.75rem; margin-bottom: 0.25rem;">KV缓存(单请求)</div>
-                            <div class="font-medium" style="color: var(--text-primary);">${NumberFormatter.formatBytes(memory.kvSingleRequest || 0)}</div>
+                            <div class="font-medium" style="color: #8b5cf6;">${NumberFormatter.formatBytes(memory.kv?.perRequest || 0)}</div>
                         </div>
                     </div>
-                    <div class="flex justify-between items-center pt-2 text-sm" style="border-top: 1px solid var(--border-color);">
-                        <span style="color: var(--text-tertiary);">KV缓存(含QPS冗余):</span>
-                        <span class="font-medium" style="color: var(--accent-primary);">${NumberFormatter.formatBytes(memory.totalKVWithQPS || 0)}</span>
+                    <div class="flex justify-between items-center pt-3 text-sm mt-1" style="border-top: 1px solid var(--border-color);">
+                        <span class="font-semibold" style="color: var(--text-primary);">KV缓存(含QPS冗余):</span>
+                        <span class="font-bold text-lg" style="color: #8b5cf6;">${NumberFormatter.formatBytes(memory.kv?.totalWithQPS || 0)}</span>
                     </div>
                 </div>
             `;
@@ -326,36 +366,36 @@ export class ResultRenderer {
         if (bandwidth) {
             const bandwidthSection = document.createElement('div');
             bandwidthSection.className = 'result-card';
-            bandwidthSection.style.cssText = 'padding: var(--space-md); margin-bottom: var(--space-md);';
+            bandwidthSection.style.cssText = 'padding: var(--space-md); margin-bottom: var(--space-md); border-left: 4px solid #10b981;';
             bandwidthSection.innerHTML = `
-                <h4 class="text-sm font-semibold mb-3 flex items-center" style="color: var(--text-primary);">
-                    <span class="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
-                    带宽计算详情
-                </h4>
+                <h3 class="text-lg font-bold mb-4 flex items-center" style="color: #10b981;">
+                    <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20"><path d="M2 6a2 2 0 012-2h6a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V6zM14.553 7.106A1 1 0 0014 8v4a1 1 0 00.553.894l2 1A1 1 0 0018 13V7a1 1 0 00-1.447-.894l-2 1z"/></svg>
+                    带宽限制 (Bandwidth)
+                </h3>
                 <div class="grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                        <div style="color: var(--text-tertiary); font-size: 0.75rem; margin-bottom: 0.5rem;">高频通信 (NVLink/HCCS)</div>
-                        <div class="space-y-1">
+                    <div class="rounded p-3" style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3);">
+                        <div style="color: #10b981; font-size: 0.875rem; font-weight: 600; margin-bottom: 0.75rem;">高频通信 (NVLink/HCCS)</div>
+                        <div class="space-y-2">
                             <div class="flex justify-between">
                                 <span style="color: var(--text-tertiary);">通信量 V_high:</span>
-                                <span class="font-medium" style="color: var(--text-primary);">${NumberFormatter.formatBytes(bandwidth.V_high || 0)}</span>
+                                <span class="font-medium" style="color: var(--text-primary);">${NumberFormatter.formatBytes(bandwidth.highFreq || 0)}</span>
                             </div>
-                            <div class="flex justify-between">
+                            <div class="flex justify-between pt-1" style="border-top: 1px solid rgba(16, 185, 129, 0.2);">
                                 <span style="color: var(--text-tertiary);">最大QPS:</span>
-                                <span class="font-medium" style="color: var(--accent-primary);">${NumberFormatter.formatNumber(Math.floor(bandwidth.qpsHighFreq || 0))} req/s</span>
+                                <span class="font-bold" style="color: #10b981;">${NumberFormatter.formatNumber(Math.floor(bandwidth.qpsMax?.highFreq || 0))} req/s</span>
                             </div>
                         </div>
                     </div>
-                    <div>
-                        <div style="color: var(--text-tertiary); font-size: 0.75rem; margin-bottom: 0.5rem;">低频通信 (PCIe/RDMA)</div>
-                        <div class="space-y-1">
+                    <div class="rounded p-3" style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3);">
+                        <div style="color: #10b981; font-size: 0.875rem; font-weight: 600; margin-bottom: 0.75rem;">低频通信 (PCIe/RDMA)</div>
+                        <div class="space-y-2">
                             <div class="flex justify-between">
                                 <span style="color: var(--text-tertiary);">通信量 V_low:</span>
-                                <span class="font-medium" style="color: var(--text-primary);">${NumberFormatter.formatBytes(bandwidth.V_low || 0)}</span>
+                                <span class="font-medium" style="color: var(--text-primary);">${NumberFormatter.formatBytes(bandwidth.lowFreq || 0)}</span>
                             </div>
-                            <div class="flex justify-between">
+                            <div class="flex justify-between pt-1" style="border-top: 1px solid rgba(16, 185, 129, 0.2);">
                                 <span style="color: var(--text-tertiary);">最大QPS:</span>
-                                <span class="font-medium" style="color: var(--accent-primary);">${NumberFormatter.formatNumber(Math.floor(bandwidth.qpsLowFreq || 0))} req/s</span>
+                                <span class="font-bold" style="color: #10b981;">${NumberFormatter.formatNumber(Math.floor(bandwidth.qpsMax?.lowFreq || 0))} req/s</span>
                             </div>
                         </div>
                     </div>
@@ -432,31 +472,31 @@ export class ChartManager {
                 this.createGPUCountBarChart(canvasId, update.data);
             } else if (update.type === 'doughnut') {
                 this.createMemoryPieChart(canvasId, update.data);
-            } else if (update.type === 'horizontalBar') {
-                this.createQPSComparisonChart(canvasId, update.data);
             }
         });
         
         this.pendingUpdates.clear();
     }
     
-    /**
-     * Create a bar chart comparing GPU counts across dimensions
-     * @param {string} canvasId - Canvas element ID
-     * @param {Object} data - GPU count data {flops, memory, bandwidth}
-     */
     createGPUCountBarChart(canvasId, data) {
         const canvas = document.getElementById(canvasId);
-        if (!canvas || typeof Chart === 'undefined') return;
+        if (!canvas || typeof Chart === 'undefined') {
+            return;
+        }
         
         if (this.charts[canvasId]) {
             this.charts[canvasId].destroy();
+            delete this.charts[canvasId];
         }
         
-        const { flops = 0, memory = 0, bandwidth = 0 } = data;
+        const flops = parseFloat(data?.flops) || 0;
+        const memory = parseFloat(data?.memory) || 0;
+        const bandwidth = parseFloat(data?.bandwidth) || 0;
         const maxValue = Math.max(flops, memory, bandwidth, 1);
         
-        this.charts[canvasId] = new Chart(canvas, {
+        const ctx = canvas.getContext('2d');
+        
+        this.charts[canvasId] = new Chart(ctx, {
             type: 'bar',
             data: {
                 labels: ['算力维度', '显存维度', '带宽维度'],
@@ -464,14 +504,14 @@ export class ChartManager {
                     label: '所需GPU数量',
                     data: [flops, memory, bandwidth],
                     backgroundColor: [
-                        'rgba(54, 162, 235, 0.7)',
-                        'rgba(255, 99, 132, 0.7)',
-                        'rgba(75, 192, 192, 0.7)'
+                        'rgba(0, 212, 255, 0.8)',
+                        'rgba(139, 92, 246, 0.8)',
+                        'rgba(16, 185, 129, 0.8)'
                     ],
                     borderColor: [
-                        'rgba(54, 162, 235, 1)',
-                        'rgba(255, 99, 132, 1)',
-                        'rgba(75, 192, 192, 1)'
+                        'rgba(0, 212, 255, 1)',
+                        'rgba(139, 92, 246, 1)',
+                        'rgba(16, 185, 129, 1)'
                     ],
                     borderWidth: 2
                 }]
@@ -484,6 +524,11 @@ export class ChartManager {
                         display: false
                     },
                     tooltip: {
+                        backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                        titleColor: '#f8fafc',
+                        bodyColor: '#f8fafc',
+                        borderColor: 'rgba(0, 212, 255, 0.3)',
+                        borderWidth: 1,
                         callbacks: {
                             label: function(context) {
                                 return context.parsed.y + ' GPU';
@@ -495,8 +540,20 @@ export class ChartManager {
                     y: {
                         beginAtZero: true,
                         suggestedMax: maxValue * 1.2,
+                        grid: {
+                            color: 'rgba(148, 163, 184, 0.1)'
+                        },
                         ticks: {
+                            color: '#94a3b8',
                             stepSize: Math.max(1, Math.ceil(maxValue / 5))
+                        }
+                    },
+                    x: {
+                        grid: {
+                            display: false
+                        },
+                        ticks: {
+                            color: '#cbd5e1'
                         }
                     }
                 }
@@ -527,14 +584,14 @@ export class ChartManager {
                 datasets: [{
                     data: [modelWeight, activation, kvCache],
                     backgroundColor: [
-                        'rgba(54, 162, 235, 0.7)',
+                        'rgba(139, 92, 246, 0.7)',
                         'rgba(255, 206, 86, 0.7)',
-                        'rgba(255, 99, 132, 0.7)'
+                        'rgba(16, 185, 129, 0.7)'
                     ],
                     borderColor: [
-                        'rgba(54, 162, 235, 1)',
+                        'rgba(139, 92, 246, 1)',
                         'rgba(255, 206, 86, 1)',
-                        'rgba(255, 99, 132, 1)'
+                        'rgba(16, 185, 129, 1)'
                     ],
                     borderWidth: 2
                 }]
@@ -564,67 +621,7 @@ export class ChartManager {
         });
     }
     
-    /**
-     * Create a horizontal bar chart for QPS comparison
-     * @param {string} canvasId - Canvas element ID
-     * @param {Object} data - QPS data {target, withRedundancy, max}
-     */
-    createQPSComparisonChart(canvasId, data) {
-        const canvas = document.getElementById(canvasId);
-        if (!canvas || typeof Chart === 'undefined') return;
-        
-        if (this.charts[canvasId]) {
-            this.charts[canvasId].destroy();
-        }
-        
-        const { target = 0, withRedundancy = 0, max = 0 } = data;
-        const maxVal = Math.max(target, withRedundancy, max, 1);
-        
-        this.charts[canvasId] = new Chart(canvas, {
-            type: 'bar',
-            data: {
-                labels: ['目标QPS', '含冗余QPS', '理论最大QPS'],
-                datasets: [{
-                    label: 'QPS',
-                    data: [target, withRedundancy, max],
-                    backgroundColor: [
-                        'rgba(54, 162, 235, 0.7)',
-                        'rgba(255, 159, 64, 0.7)',
-                        'rgba(75, 192, 192, 0.7)'
-                    ],
-                    borderColor: [
-                        'rgba(54, 162, 235, 1)',
-                        'rgba(255, 159, 64, 1)',
-                        'rgba(75, 192, 192, 1)'
-                    ],
-                    borderWidth: 2
-                }]
-            },
-            options: {
-                indexAxis: 'y',
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        display: false
-                    },
-                    tooltip: {
-                        callbacks: {
-                            label: function(context) {
-                                return context.parsed.x + ' req/s';
-                            }
-                        }
-                    }
-                },
-                scales: {
-                    x: {
-                        beginAtZero: true,
-                        suggestedMax: maxVal * 1.2
-                    }
-                }
-            }
-        });
-    }
+
     
     destroyChart(canvasId) {
         if (this.charts[canvasId]) {
@@ -692,18 +689,10 @@ export function updateVisualizations(results, chartManager, containerId) {
             chartManager.createMemoryPieChart('memory-breakdown-chart', {
                 modelWeight: results.memory.modelWeight || 0,
                 activation: results.memory.activation || 0,
-                kvCache: results.memory.totalKVWithQPS || 0
+                kvCache: results.memory.kv?.totalWithQPS || 0
             });
         }
         
-        // Update QPS comparison chart
-        if (results.bandwidth) {
-            chartManager.createQPSComparisonChart('qps-comparison-chart', {
-                target: results.bandwidth.qpsTarget || 0,
-                withRedundancy: results.bandwidth.qpsWithRedundancy || 0,
-                max: results.bandwidth.qpsMax || 0
-            });
-        }
     }
 }
 

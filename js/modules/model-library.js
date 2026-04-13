@@ -169,6 +169,74 @@ const MODEL_LIBRARY = {
         V: 151552
     },
 
+    // ========== GLM系列 (Zhipu AI) ==========
+    'GLM-4-9B': {
+        name: 'GLM-4-9B',
+        N_total: 9.0,
+        attention_arch: 'GQA',
+        H: 4096,
+        L: 40,
+        A: 32,
+        A_kv: 4,
+        I: 13696,
+        V: 151552
+    },
+    'GLM-4-32B': {
+        name: 'GLM-4-32B',
+        N_total: 32.0,
+        attention_arch: 'GQA',
+        H: 6144,
+        L: 56,
+        A: 48,
+        A_kv: 8,
+        I: 20480,
+        V: 151552
+    },
+    'GLM-4-128B': {
+        name: 'GLM-4-128B',
+        N_total: 128.0,
+        attention_arch: 'GQA',
+        H: 8192,
+        L: 80,
+        A: 64,
+        A_kv: 8,
+        I: 32768,
+        V: 151552
+    },
+    'GLM-4V': {
+        name: 'GLM-4V',
+        N_total: 9.0,
+        attention_arch: 'GQA',
+        H: 4096,
+        L: 40,
+        A: 32,
+        A_kv: 4,
+        I: 13696,
+        V: 151552
+    },
+    'GLMEdge-7B': {
+        name: 'GLMEdge-7B',
+        N_total: 7.0,
+        attention_arch: 'GQA',
+        H: 4096,
+        L: 32,
+        A: 32,
+        A_kv: 4,
+        I: 13696,
+        V: 151552
+    },
+    'GLMEdge-14B': {
+        name: 'GLMEdge-14B',
+        N_total: 14.0,
+        attention_arch: 'GQA',
+        H: 5120,
+        L: 40,
+        A: 40,
+        A_kv: 4,
+        I: 19456,
+        V: 151552
+    },
+
     // ========== MoE模型 ==========
     'Mixtral-8x7B': {
         name: 'Mixtral-8x7B',
@@ -297,7 +365,57 @@ const MODEL_LIBRARY = {
         d_ff: 1536
     },
 
-    // ========== Kimi Moonlight系列 (Moonshot AI) ==========
+    // ========== Kimi系列 (Moonshot AI) ==========
+    'Kimi-V1-8B': {
+        name: 'Kimi-V1-8B',
+        N_total: 8.0,
+        attention_arch: 'GQA',
+        H: 3072,
+        L: 32,
+        A: 24,
+        A_kv: 8,
+        I: 12288,
+        V: 200000
+    },
+    'Kimi-V1-32B': {
+        name: 'Kimi-V1-32B',
+        N_total: 32.0,
+        attention_arch: 'GQA',
+        H: 6144,
+        L: 56,
+        A: 48,
+        A_kv: 8,
+        I: 24576,
+        V: 200000
+    },
+    'Kimi-V1-72B': {
+        name: 'Kimi-V1-72B',
+        N_total: 72.0,
+        attention_arch: 'GQA',
+        H: 8192,
+        L: 80,
+        A: 64,
+        A_kv: 8,
+        I: 32768,
+        V: 200000
+    },
+    'Kimi-k2': {
+        name: 'Kimi-k2',
+        N_total: 56.0,
+        attention_arch: 'GQA',
+        H: 6144,
+        L: 64,
+        A: 48,
+        A_kv: 8,
+        I: 24576,
+        V: 200000,
+        is_moe: true,
+        num_experts: 64,
+        active_experts: 8,
+        d_ff: 12288
+    },
+
+    // ========== Kimi Moonlight系列 (Moonshot AI MoE) ==========
     'Moonlight-16B-A3B': {
         name: 'Moonlight-16B-A3B',
         N_total: 16.0,
@@ -347,6 +465,32 @@ const MODEL_LIBRARY = {
     },
     'MiniMax-Text-01': {
         name: 'MiniMax-Text-01',
+        N_total: 456.0,
+        attention_arch: 'GQA',
+        H: 6144,
+        L: 80,
+        A: 64,
+        A_kv: 8,
+        I: 9216,
+        V: 200000,
+        is_moe: true,
+        num_experts: 32,
+        active_experts: 2,
+        d_ff: 9216
+    },
+    'MiniMax-Echo': {
+        name: 'MiniMax-Echo',
+        N_total: 7.0,
+        attention_arch: 'GQA',
+        H: 4096,
+        L: 28,
+        A: 32,
+        A_kv: 4,
+        I: 14336,
+        V: 200000
+    },
+    'MiniMax-Text-01-RC': {
+        name: 'MiniMax-Text-01-RC',
         N_total: 456.0,
         attention_arch: 'GQA',
         H: 6144,

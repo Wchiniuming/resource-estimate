@@ -74,7 +74,9 @@ export const FORMULA_TEMPLATES = {
             // PP
             'PP': `N_{CACHE-limit} = n_{pp}`,
             // TP+PP
-            'TP_PP': `N_{CACHE-limit} = n_{tp} \\times n_{pp}`
+            'TP_PP': `N_{CACHE-limit} = n_{tp} \\times n_{pp}`,
+            // EP (Expert Parallel)
+            'EP': `N_{CACHE-limit} = n_{ep}`
         }
     },
 
@@ -113,12 +115,13 @@ export function getFormulas(params) {
         n_ep = 1 
     } = params;
 
-    // 构建架构key
     const archKey = `${attentionArch}_${ffnArch}`;
     
     // 确定并行策略
     let parallelStrategy = 'single';
-    if (n_tp > 1 && n_pp > 1) {
+    if (n_ep > 1) {
+        parallelStrategy = 'EP';
+    } else if (n_tp > 1 && n_pp > 1) {
         parallelStrategy = 'TP_PP';
     } else if (n_tp > 1) {
         parallelStrategy = 'TP';
@@ -209,12 +212,24 @@ export function getFormulas(params) {
         }
     };
     
-    // 替换为用户自定义的公式
+    // 替换为用户自定义的公式 (带架构信息)
     Object.entries(formulas).forEach(([dimension, dimFormulas]) => {
         Object.entries(dimFormulas).forEach(([key, value]) => {
             if (key === 'title') return;
             
-            const formulaId = `${dimension}-${key}`;
+            // 对于flops维度，使用架构特定的公式ID
+            let formulaId;
+            if (dimension === 'flops' && (key === 'prefill' || key === 'decode')) {
+                formulaId = `${dimension}-${key}-${archKey}`;
+            } else {
+                formulaId = `${dimension}-${key}`;
+            }
+            
+            // 将formulaId保存到formulaDef中，供createFormulaItem使用
+            if (typeof value === 'object') {
+                value.formulaId = formulaId;
+            }
+            
             const customFormula = window.FormulaManager.getCurrentFormula(formulaId);
             if (customFormula) {
                 if (typeof value === 'object') {
@@ -264,23 +279,26 @@ export function renderFormula(latex, element, options = {}) {
 export function createFormulaPanel(formulas, container) {
     if (!container) return;
 
-    container.innerHTML = '';
+    // 使用 textContent 清空，比 innerHTML = '' 更快
+    while (container.firstChild) {
+        container.removeChild(container.firstChild);
+    }
 
     // 创建维度Tab导航
     const tabNav = document.createElement('div');
-    tabNav.className = 'border-b border-gray-200 mb-4';
+    tabNav.className = 'border-b border-[rgba(148,163,184,0.2)] mb-4';
     tabNav.innerHTML = `
         <nav class="-mb-px flex space-x-8" aria-label="Formula Tabs">
-            <button data-formula-tab="flops" class="formula-tab-btn border-blue-500 text-blue-600 whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm">
+            <button data-formula-tab="flops" class="formula-tab-btn border-[#00d4ff] text-[#00d4ff] whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm">
                 算力维度
             </button>
-            <button data-formula-tab="memory" class="formula-tab-btn border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm">
+            <button data-formula-tab="memory" class="formula-tab-btn border-transparent text-[#94a3b8] hover:text-[#cbd5e1] hover:border-[rgba(148,163,184,0.3)] whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm">
                 显存维度
             </button>
-            <button data-formula-tab="bandwidth" class="formula-tab-btn border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm">
+            <button data-formula-tab="bandwidth" class="formula-tab-btn border-transparent text-[#94a3b8] hover:text-[#cbd5e1] hover:border-[rgba(148,163,184,0.3)] whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm">
                 带宽维度
             </button>
-            <button data-formula-tab="final" class="formula-tab-btn border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm">
+            <button data-formula-tab="final" class="formula-tab-btn border-transparent text-[#94a3b8] hover:text-[#cbd5e1] hover:border-[rgba(148,163,184,0.3)] whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm">
                 最终结果
             </button>
         </nav>
@@ -337,20 +355,22 @@ function createFormulaSection(id, formulas) {
     section.className = 'formula-section hidden';
 
     const title = document.createElement('h3');
-    title.className = 'text-md font-semibold text-gray-800 mb-4';
+    title.className = 'text-md font-semibold text-[#f8fafc] mb-4';
     title.textContent = formulas.title;
     section.appendChild(title);
 
     const formulaList = document.createElement('div');
     formulaList.className = 'space-y-3';
 
-    // 遍历所有公式项
+    // 使用 DocumentFragment 批量插入公式项，减少重排
+    const fragment = document.createDocumentFragment();
     Object.entries(formulas).forEach(([key, value]) => {
         if (key === 'title') return;
 
         const formulaItem = createFormulaItem(id, key, value);
-        formulaList.appendChild(formulaItem);
+        fragment.appendChild(formulaItem);
     });
+    formulaList.appendChild(fragment);
 
     section.appendChild(formulaList);
     return section;
@@ -365,8 +385,10 @@ function createFormulaSection(id, formulas) {
  */
 function createFormulaItem(dimension, key, formulaDef) {
     const item = document.createElement('div');
-    item.className = 'formula-item bg-gray-50 rounded-lg p-3 border border-gray-200 hover:border-blue-300 transition-colors cursor-pointer';
-    const formulaId = `${dimension}-${key}`;
+    item.className = 'formula-item bg-[rgba(30,41,59,0.6)] rounded-lg p-3 border border-[rgba(148,163,184,0.2)] hover:border-[#00d4ff]/50 transition-colors cursor-pointer';
+    
+    // 使用formulaDef中保存的formulaId（如果有架构特定ID）
+    const formulaId = (formulaDef && formulaDef.formulaId) ? formulaDef.formulaId : `${dimension}-${key}`;
     item.dataset.formulaId = formulaId;
     item.dataset.formulaDimension = dimension;
     item.dataset.formulaKey = key;
@@ -387,11 +409,11 @@ function createFormulaItem(dimension, key, formulaDef) {
     const header = document.createElement('div');
     header.className = 'flex items-center justify-between mb-2';
     header.innerHTML = `
-        <span class="text-sm font-medium text-gray-700">${label}</span>
+        <span class="text-sm font-medium text-[#cbd5e1]">${label}</span>
         <div class="flex items-center gap-2">
-            ${description ? `<span class="text-xs text-gray-500" title="${description}">ⓘ</span>` : ''}
-            <button class="formula-history-btn text-xs bg-gray-100 hover:bg-gray-200 px-2 py-1 rounded" title="查看版本历史">
-                📜
+            ${description ? `<span class="text-xs text-[#94a3b8]" title="${description}">ⓘ</span>` : ''}
+            <button class="formula-history-btn text-xs bg-[rgba(30,41,59,0.8)] hover:bg-[rgba(30,41,59,1)] text-[#cbd5e1] px-2 py-1 rounded border border-[rgba(148,163,184,0.2)] transition-colors" title="查看版本历史">
+                📜 版本历史
             </button>
         </div>
     `;
@@ -433,30 +455,30 @@ export function openFormulaEditor(formulaId, label, currentLatex) {
     // 创建弹窗
     const modal = document.createElement('div');
     modal.id = 'formula-editor-modal';
-    modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+    modal.className = 'fixed inset-0 bg-[rgba(10,14,26,0.85)] flex items-center justify-center z-50';
     modal.innerHTML = `
-        <div class="bg-white rounded-lg w-3/4 max-w-3xl max-h-[90vh] overflow-y-auto">
-            <div class="p-4 border-b border-gray-200 flex justify-between items-center">
-                <h3 class="text-lg font-semibold">编辑公式: ${label}</h3>
-                <button id="close-editor-btn" class="text-gray-500 hover:text-gray-700">&times;</button>
+        <div class="bg-[#0f172a] rounded-lg w-3/4 max-w-3xl max-h-[90vh] overflow-y-auto border border-[rgba(148,163,184,0.2)]">
+            <div class="p-4 border-b border-[rgba(148,163,184,0.2)] flex justify-between items-center">
+                <h3 class="text-lg font-semibold text-[#f8fafc]">编辑公式: ${label}</h3>
+                <button id="close-editor-btn" class="text-[#94a3b8] hover:text-[#f8fafc] text-2xl">&times;</button>
             </div>
             <div class="p-4 space-y-4">
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">LaTeX 代码</label>
-                    <textarea id="formula-latex-input" class="w-full border border-gray-300 rounded p-2 h-24 font-mono text-sm">${currentLatex}</textarea>
+                    <label class="block text-sm font-medium text-[#cbd5e1] mb-1">LaTeX 代码</label>
+                    <textarea id="formula-latex-input" class="w-full border border-[rgba(148,163,184,0.3)] rounded p-2 h-24 font-mono text-sm bg-[rgba(30,41,59,0.6)] text-[#f8fafc]" placeholder="请输入LaTeX代码...">${currentLatex}</textarea>
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">预览</label>
-                    <div id="formula-preview" class="border border-gray-200 rounded p-4 bg-gray-50 min-h-[80px] flex items-center justify-center"></div>
+                    <label class="block text-sm font-medium text-[#cbd5e1] mb-1">预览</label>
+                    <div id="formula-preview" class="border border-[rgba(148,163,184,0.2)] rounded p-4 bg-[rgba(30,41,59,0.6)] min-h-[80px] flex items-center justify-center text-[#f8fafc]"></div>
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">版本描述</label>
-                    <input id="formula-version-desc" type="text" class="w-full border border-gray-300 rounded p-2" placeholder="描述本次修改内容...">
+                    <label class="block text-sm font-medium text-[#cbd5e1] mb-1">版本描述</label>
+                    <input id="formula-version-desc" type="text" class="w-full border border-[rgba(148,163,184,0.3)] rounded p-2 bg-[rgba(30,41,59,0.6)] text-[#f8fafc] placeholder-[#64748b]" placeholder="描述本次修改内容...">
                 </div>
             </div>
-            <div class="p-4 border-t border-gray-200 flex justify-end gap-2">
-                <button id="cancel-editor-btn" class="px-4 py-2 border border-gray-300 rounded hover:bg-gray-50">取消</button>
-                <button id="save-editor-btn" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">保存</button>
+            <div class="p-4 border-t border-[rgba(148,163,184,0.2)] flex justify-end gap-2">
+                <button id="cancel-editor-btn" class="px-4 py-2 border border-[rgba(148,163,184,0.3)] rounded hover:bg-[rgba(30,41,59,0.8)] text-[#cbd5e1] transition-colors">取消</button>
+                <button id="save-editor-btn" class="px-4 py-2 bg-[#00d4ff]/20 text-[#00d4ff] border border-[#00d4ff]/50 rounded hover:bg-[#00d4ff]/30 transition-colors">保存</button>
             </div>
         </div>
     `;
@@ -537,37 +559,37 @@ export function openFormulaHistory(formulaId, label, currentLatex) {
     // 创建弹窗
     const modal = document.createElement('div');
     modal.id = 'formula-history-modal';
-    modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+    modal.className = 'fixed inset-0 bg-[rgba(10,14,26,0.85)] flex items-center justify-center z-50';
     modal.innerHTML = `
-        <div class="bg-white rounded-lg w-3/4 max-w-3xl max-h-[90vh] overflow-y-auto">
-            <div class="p-4 border-b border-gray-200 flex justify-between items-center">
-                <h3 class="text-lg font-semibold">版本历史: ${label}</h3>
-                <button id="close-history-btn" class="text-gray-500 hover:text-gray-700">&times;</button>
+        <div class="bg-[#0f172a] rounded-lg w-3/4 max-w-3xl max-h-[90vh] overflow-y-auto border border-[rgba(148,163,184,0.2)]">
+            <div class="p-4 border-b border-[rgba(148,163,184,0.2)] flex justify-between items-center">
+                <h3 class="text-lg font-semibold text-[#f8fafc]">版本历史: ${label}</h3>
+                <button id="close-history-btn" class="text-[#94a3b8] hover:text-[#f8fafc] text-2xl">&times;</button>
             </div>
             <div class="p-4">
-                ${versions.length === 0 ? '<p class="text-gray-500 text-center py-4">暂无版本历史</p>' : ''}
+                ${versions.length === 0 ? '<p class="text-[#94a3b8] text-center py-4">暂无版本历史</p>' : ''}
                 <div id="version-list" class="space-y-3">
                     ${versions.map((version, index) => `
-                        <div class="border border-gray-200 rounded p-3 hover:bg-gray-50">
+                        <div class="border border-[rgba(148,163,184,0.2)] rounded p-3 hover:bg-[rgba(30,41,59,0.6)] transition-colors">
                             <div class="flex justify-between items-start mb-2">
                                 <div>
-                                    <div class="font-medium">v${version.version} ${index === 0 ? '(当前版本)' : ''}</div>
-                                    <div class="text-xs text-gray-500">${new Date(version.timestamp).toLocaleString()}</div>
-                                    ${version.description ? `<div class="text-sm text-gray-600 mt-1">${version.description}</div>` : ''}
+                                    <div class="font-medium text-[#f8fafc]">v${version.version} ${index === 0 ? '(当前版本)' : ''}</div>
+                                    <div class="text-xs text-[#94a3b8]">${new Date(version.timestamp).toLocaleString()}</div>
+                                    ${version.description ? `<div class="text-sm text-[#cbd5e1] mt-1">${version.description}</div>` : ''}
                                 </div>
                                 <div class="flex gap-2">
-                                    ${index !== 0 ? `<button class="rollback-btn text-xs bg-blue-100 hover:bg-blue-200 px-2 py-1 rounded" data-version="${version.version}">回滚到此版本</button>` : ''}
+                                    ${index !== 0 ? `<button class="rollback-btn text-xs bg-[#00d4ff]/10 hover:bg-[#00d4ff]/20 text-[#00d4ff] border border-[#00d4ff]/30 px-2 py-1 rounded transition-colors" data-version="${version.version}">回滚到此版本</button>` : ''}
                                 </div>
                             </div>
-                            <div class="border border-gray-100 rounded p-2 bg-gray-50">
+                            <div class="border border-[rgba(148,163,184,0.15)] rounded p-2 bg-[rgba(30,41,59,0.4)]">
                                 <div id="version-preview-${version.version}" class="text-center"></div>
                             </div>
                         </div>
                     `).join('')}
                 </div>
             </div>
-            <div class="p-4 border-t border-gray-200 flex justify-end">
-                <button id="close-history-btn-bottom" class="px-4 py-2 border border-gray-300 rounded hover:bg-gray-50">关闭</button>
+            <div class="p-4 border-t border-[rgba(148,163,184,0.2)] flex justify-end">
+                <button id="close-history-btn-bottom" class="px-4 py-2 border border-[rgba(148,163,184,0.3)] rounded hover:bg-[rgba(30,41,59,0.8)] text-[#cbd5e1] transition-colors">关闭</button>
             </div>
         </div>
     `;
@@ -624,7 +646,7 @@ function createFinalFormulaSection(finalFormula) {
     section.className = 'formula-section hidden';
 
     const title = document.createElement('h3');
-    title.className = 'text-md font-semibold text-gray-800 mb-4';
+    title.className = 'text-md font-semibold text-[#f8fafc] mb-4';
     title.textContent = finalFormula.title;
     section.appendChild(title);
 
@@ -635,7 +657,7 @@ function createFinalFormulaSection(finalFormula) {
     });
 
     // 添加高亮样式
-    item.classList.add('bg-blue-50', 'border-blue-300');
+    item.classList.add('bg-[rgba(0,212,255,0.1)]', 'border-[#00d4ff]/50');
 
     section.appendChild(item);
     return section;
@@ -664,15 +686,30 @@ function bindTabEvents(tabNav, tabContent) {
  * @param {HTMLElement} tabContent - Tab内容元素
  */
 function switchFormulaTab(tab, tabNav, tabContent) {
+    // 定义各维度的颜色
+    const dimensionColors = {
+        flops: '#00d4ff',    // 算力 - cyan
+        memory: '#8b5cf6',   // 显存 - purple
+        bandwidth: '#10b981', // 带宽 - green
+        final: '#f59e0b'     // 最终 - gold
+    };
+
     // 更新按钮状态
     const tabButtons = tabNav.querySelectorAll('.formula-tab-btn');
     tabButtons.forEach(btn => {
-        if (btn.dataset.formulaTab === tab) {
-            btn.classList.remove('border-transparent', 'text-gray-500');
-            btn.classList.add('border-blue-500', 'text-blue-600');
+        const btnTab = btn.dataset.formulaTab;
+        const activeColor = dimensionColors[btnTab] || '#00d4ff';
+
+        if (btnTab === tab) {
+            btn.classList.remove('border-transparent', 'text-[#94a3b8]');
+            btn.style.borderColor = activeColor;
+            btn.style.color = activeColor;
+            btn.classList.add(`border-[${activeColor}]`, `text-[${activeColor}]`);
         } else {
-            btn.classList.remove('border-blue-500', 'text-blue-600');
-            btn.classList.add('border-transparent', 'text-gray-500');
+            btn.style.borderColor = 'transparent';
+            btn.style.color = '#94a3b8';
+            btn.classList.remove(`border-[${activeColor}]`, `text-[${activeColor}]`);
+            btn.classList.add('border-transparent', 'text-[#94a3b8]');
         }
     });
 
@@ -687,27 +724,8 @@ function switchFormulaTab(tab, tabNav, tabContent) {
     });
 }
 
-/**
- * 高亮当前使用的公式
- * @param {string} dimension - 维度 (flops/memory/bandwidth)
- * @param {string} formulaKey - 公式键名
- */
 export function highlightFormula(dimension, formulaKey) {
-    // 移除所有高亮
-    document.querySelectorAll('.formula-item.active').forEach(item => {
-        item.classList.remove('active', 'bg-green-50', 'border-green-300');
-        item.classList.add('bg-gray-50', 'border-gray-200');
-    });
-
-    // 添加新的高亮
-    const section = document.getElementById(`formula-section-${dimension}`);
-    if (section) {
-        const targetItem = section.querySelector(`[data-formula-key="${formulaKey}"]`);
-        if (targetItem) {
-            targetItem.classList.remove('bg-gray-50', 'border-gray-200');
-            targetItem.classList.add('active', 'bg-green-50', 'border-green-300');
-        }
-    }
+    return;
 }
 
 /**

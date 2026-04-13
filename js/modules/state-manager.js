@@ -106,7 +106,7 @@ export class StateManager {
         
         this.listeners = new Map();
         this.debounceTimer = null;
-        this.debounceDelay = 600;
+        this.debounceDelay = 100;
         this.calculateQueue = [];
         this.isCalculating = false;
         
@@ -174,7 +174,13 @@ export class StateManager {
             this.state.params.e = value;
         }
         
-        this.emit('paramsChanged', { key, value, oldValue, params: this.state.params });
+        this.emit('paramsChanged', { 
+            key, 
+            value, 
+            oldValue, 
+            params: this.state.params,
+            keys: [key]
+        });
         this.emit('stateChanged', this.state);
         this.saveToStorage();
         
@@ -185,16 +191,22 @@ export class StateManager {
     
     setParams(params, triggerCalculation = true) {
         let hasChanges = false;
+        const changedKeys = [];
         
         Object.entries(params).forEach(([key, value]) => {
             if (this.state.params[key] !== value) {
                 this.state.params[key] = value;
                 hasChanges = true;
+                changedKeys.push(key);
             }
         });
         
         if (hasChanges) {
-            this.emit('paramsChanged', { params: this.state.params });
+            this.emit('paramsChanged', { 
+                params: this.state.params, 
+                keys: changedKeys,
+                changedParams: params
+            });
             this.emit('stateChanged', this.state);
             this.saveToStorage();
             
@@ -322,15 +334,21 @@ export class StateManager {
     
     batchUpdate(params) {
         let hasChanges = false;
+        const changedKeys = [];
         Object.entries(params).forEach(([key, value]) => {
             if (this.state.params[key] !== value) {
                 this.state.params[key] = value;
                 hasChanges = true;
+                changedKeys.push(key);
             }
         });
         
         if (hasChanges) {
-            this.emit('paramsChanged', { params: this.state.params });
+            this.emit('paramsChanged', { 
+                params: this.state.params,
+                keys: changedKeys,
+                changedParams: params
+            });
             this.emit('stateChanged', this.state);
             this.saveToStorage();
             this.debouncedCalculate();
@@ -348,9 +366,10 @@ export class StateManager {
     resetToDefaults() {
         this.state.params = { ...DEFAULT_PARAMS };
         this.clearAllErrors();
-        this.emit('paramsChanged', { params: this.state.params, reset: true });
+        this.emit('paramsChanged', { params: this.state.params, reset: true, keys: Object.keys(DEFAULT_PARAMS) });
         this.emit('stateChanged', this.state);
         this.saveToStorage();
+        this.debouncedCalculate();
     }
     
     saveToStorage() {
