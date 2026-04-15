@@ -125,10 +125,10 @@ export function getFormulas(params) {
         parallelStrategy = 'TP_PP';
     } else if (n_tp > 1) {
         parallelStrategy = 'TP';
-    } else if (n_pp > 1) {
+} else if (n_pp > 1) {
         parallelStrategy = 'PP';
     }
-
+    
     // 构建基础公式
     const formulas = {
         flops: {

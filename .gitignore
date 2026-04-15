@@ -1,0 +1,14 @@
+# 注释
+.DS_Store        # 系统文件
+Thumbs.db
+*.log            # 所有 .log 文件
+*.tmp
+.env             # 环境变量
+node_modules/    # 目录（结尾 /）
+dist/
+build/
+.idea/
+.vscode/
+
+# 例外（! 取反）
+!dist/README.md  # 保留 dist 下的 README

@@ -13,6 +13,11 @@ import * as MemoryEngine from './modules/memory-engine.js';
 import * as BandwidthEngine from './modules/bandwidth-engine.js';
 import { getModel, fillModelParams } from './modules/model-library.js';
 import { getServer, fillServerParams } from './modules/hardware-library.js';
+import { exportCalculationResults } from './modules/export-service.js';
+
+async function exportCalculationResultsToDocx(params, results) {
+    return exportCalculationResults(params, results);
+}
 
 let stateManager;
 let chartManager;
@@ -30,8 +35,26 @@ document.addEventListener('DOMContentLoaded', () => {
     initializeCharts();
     initializeFormulaDisplay();
 
+    // Auto-select first model and server on initial load
+    autoSelectDefaults();
+
     runInitialCalculation();
 });
+
+function autoSelectDefaults() {
+    const modelSelect = document.getElementById('model-select');
+    const serverSelect = document.getElementById('server-select');
+
+    if (modelSelect && modelSelect.options.length > 1) {
+        modelSelect.value = modelSelect.options[1].value;
+        modelSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+
+    if (serverSelect && serverSelect.options.length > 1) {
+        serverSelect.value = serverSelect.options[1].value;
+        serverSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+}
 
 function initializeStateManager() {
     stateManager = new StateManager();
@@ -78,20 +101,21 @@ function initializeEventHandlers() {
         });
     });
     
-    const resetBtn = document.getElementById('reset-params-btn');
-    if (resetBtn) {
-        resetBtn.addEventListener('click', () => {
-            if (confirm('确定要重置所有参数为默认值吗？')) {
-                stateManager.resetToDefaults();
-                syncFormWithState();
+    const exportBtn = document.getElementById('export-btn');
+    if (exportBtn) {
+        exportBtn.addEventListener('click', async () => {
+            const results = stateManager.getResults();
+            if (!results.isValid) {
+                alert('请先完成计算再导出结果');
+                return;
             }
-        });
-    }
-    
-    const recalculateBtn = document.getElementById('recalculate-btn');
-    if (recalculateBtn) {
-        recalculateBtn.addEventListener('click', () => {
-            stateManager.calculate();
+            const params = stateManager.getAllParams();
+            try {
+                await exportCalculationResultsToDocx(params, results);
+            } catch (error) {
+                console.error('Export failed:', error);
+                alert('导出失败: ' + error.message);
+            }
         });
     }
 
@@ -272,7 +296,8 @@ function handleParamsChanged(data) {
     }
     
     const archOrParallelKeys = ['attentionArch', 'ffnArch', 'n_tp', 'n_pp', 'n_ep'];
-    const hasArchOrParallelChange = keys ? keys.some(k => archOrParallelKeys.includes(k)) : archOrParallelKeys.includes(key);
+    const changedKeys = keys || [key];
+    const hasArchOrParallelChange = changedKeys.some(k => archOrParallelKeys.includes(k));
     const paramsInChangedParams = changedParams ? Object.keys(changedParams).filter(k => archOrParallelKeys.includes(k)) : [];
     const shouldUpdate = hasArchOrParallelChange || paramsInChangedParams.length > 0;
     
@@ -284,11 +309,14 @@ function handleParamsChanged(data) {
 }
 
 function handleResultsChanged(results) {
+    const params = stateManager.getAllParams();
+    const config = { ...params };
+    
     // Render GPU count cards
     const gpuCountContainer = document.getElementById('gpu-count-cards');
     if (gpuCountContainer && results.isValid) {
         gpuCountContainer.innerHTML = '';
-        const gpuSummary = ResultRenderer.createGPUCountSummary(results);
+        const gpuSummary = ResultRenderer.createGPUCountSummary({ ...results, config });
         gpuCountContainer.appendChild(gpuSummary);
     }
 
@@ -376,7 +404,10 @@ function performCalculation() {
             isValid: true,
             config: {
                 attentionArch: params.attentionArch,
-                ffnArch: params.ffnArch
+                ffnArch: params.ffnArch,
+                n_tp: params.n_tp,
+                n_pp: params.n_pp,
+                n_ep: params.n_ep
             }
         };
 

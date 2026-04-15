@@ -153,6 +153,7 @@ export class StateManager {
         
         const validation = this.validateParam(key, value);
         if (!validation.valid) {
+            console.error(`Validation failed for key "${key}":`, validation.message, 'value:', value);
             this.setError(key, validation.message);
             return;
         }
@@ -168,10 +169,34 @@ export class StateManager {
         if (key === 'S' || key === 's_out') {
             const S = this.state.params.S;
             const s_out = this.state.params.s_out;
-            this.state.params.T = S + s_out;
+            const newT = S + s_out;
+            if (this.state.params.T !== newT) {
+                this.state.params.T = newT;
+                this.emit('paramsChanged', { 
+                    key: 'T', 
+                    value: newT, 
+                    oldValue: this.state.params.T,
+                    params: this.state.params,
+                    keys: ['T'],
+                    derived: true
+                });
+            }
         }
-        if (key === 'QPS_redundancy') {
-            this.state.params.e = value;
+        if (key === 'QPS_target' || key === 'QPS_redundancy') {
+            const QPS_target = this.state.params.QPS_target;
+            const QPS_redundancy = this.state.params.QPS_redundancy;
+            const newE = QPS_target * QPS_redundancy;
+            if (this.state.params.e !== newE) {
+                this.state.params.e = newE;
+                this.emit('paramsChanged', { 
+                    key: 'e', 
+                    value: newE, 
+                    oldValue: this.state.params.e,
+                    params: this.state.params,
+                    keys: ['e'],
+                    derived: true
+                });
+            }
         }
         
         this.emit('paramsChanged', { 
@@ -344,6 +369,14 @@ export class StateManager {
         });
         
         if (hasChanges) {
+            const S = this.state.params.S;
+            const s_out = this.state.params.s_out;
+            this.state.params.T = S + s_out;
+            
+            const QPS_target = this.state.params.QPS_target;
+            const QPS_redundancy = this.state.params.QPS_redundancy;
+            this.state.params.e = QPS_target * QPS_redundancy;
+            
             this.emit('paramsChanged', { 
                 params: this.state.params,
                 keys: changedKeys,

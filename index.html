@@ -37,18 +37,11 @@
                 </div>
             </div>
             <div class="header-actions">
-                <button id="reset-params-btn" class="btn-secondary">
+                <button id="export-btn" class="btn-primary">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                        <path d="M12 10v6m0 0l-3-3m3 3l3-3M3 17v2a2 2 0 002 2h14a2 2 0 002-2v-2"/>
                     </svg>
-                    重置
-                </button>
-                <button id="recalculate-btn" class="btn-primary">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/>
-                        <path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                    </svg>
-                    计算
+                    导出结果
                 </button>
             </div>
         </div>
@@ -273,10 +266,10 @@
                                 计算资源
                             </div>
                             <div class="form-grid-mini">
-                                <div class="form-group-mini">
+                                <!-- <div class="form-group-mini">
                                     <label class="input-label-small">服务器型号</label>
                                     <input type="text" id="param-serverType" data-param="serverType" class="param-input-mini" placeholder="例如: H100-SXM5">
-                                </div>
+                                </div> -->
                                 <div class="form-group-mini">
                                     <label class="input-label-small">单卡算力 (FLOPS_percard)</label>
                                     <input type="number" id="param-FLOPS_percard" data-param="FLOPS_percard" class="param-input-mini" step="1e12">
@@ -509,6 +502,8 @@
     </footer>
 
     <script type="module" src="js/modules/formula-renderer.js"></script>
+    <!-- Docx.js for DOCX export functionality -->
+    <script src="https://cdn.jsdelivr.net/npm/docx@8.0.0/build/index.js"></script>
     <script type="module" src="js/app.js"></script>
 </body>
 </html>

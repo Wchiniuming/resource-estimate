@@ -496,11 +496,12 @@ body {
 
 /* ===== GPU Cards Grid ===== */
 .gpu-cards-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: var(--space-md);
   width: 100%;
   overflow: hidden;
+}
+
+.gpu-cards-grid > div {
+  min-width: 0;
 }
 
 .gpu-cards-grid > * {
@@ -672,12 +673,9 @@ body {
 }
 
 /* ===== GPU Card Responsive Scaling ===== */
-.gpu-cards-grid {
-  container-type: inline-size;
-}
-
-@container (max-width: 400px) {
+@media (max-width: 768px) {
   .gpu-cards-grid {
+    display: grid;
     grid-template-columns: 1fr;
   }
 }
@@ -704,19 +702,15 @@ body {
   max-width: 100%;
 }
 
-.gpu-cards-grid {
-  grid-template-columns: repeat(4, 1fr) !important;
-}
-
 @media (max-width: 1200px) {
   .gpu-cards-grid {
-    grid-template-columns: repeat(2, 1fr) !important;
+    grid-template-columns: repeat(2, 1fr);
   }
 }
 
 @media (max-width: 768px) {
   .gpu-cards-grid {
-    grid-template-columns: 1fr !important;
+    grid-template-columns: 1fr;
   }
 }
 

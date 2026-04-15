@@ -188,105 +188,140 @@ export class ResultRenderer {
     }
     
     /**
-     * Create GPU count summary cards
+     * Create GPU count summary cards with calculation formulas
      * @param {Object} results - Calculation results from all three dimensions
      * @returns {HTMLElement} Container with GPU count cards
      */
     static createGPUCountSummary(results) {
-        // Return a document fragment to append cards directly to the container
-        // without creating an extra wrapper div
         const fragment = document.createDocumentFragment();
-
-        const { flops, memory, bandwidth } = results;
-
-        // FLOPs limit card - Cyan/Blue theme (#00d4ff)
-        const flopsCard = this.createResultCard({
-            title: '算力维度',
-            value: flops?.limit?.gpuCount || 0,
-            unit: 'GPU',
-            color: 'cyan',
-            subtitle: 'FLOPs-limit',
-            details: [
-                { label: '所需FLOPs', value: NumberFormatter.formatFLOPs(flops?.limit?.totalFLOPsRequired || 0) },
-                { label: '单卡FLOPs', value: NumberFormatter.formatFLOPs(flops?.limit?.FLOPS_percard || 0) }
-            ],
-            customStyles: {
-                borderLeft: '3px solid #00d4ff',
-                background: 'linear-gradient(135deg, rgba(0, 212, 255, 0.08) 0%, transparent 60%)'
-            },
-            titleColor: '#00d4ff',
-            valueColor: '#00d4ff'
-        });
-
-        // CACHE limit card - Purple/Violet theme (#8b5cf6)
-        const cacheCard = this.createResultCard({
-            title: '显存维度',
-            value: memory?.cacheLimit?.gpuCount || 0,
-            unit: 'GPU',
-            color: 'violet',
-            subtitle: 'CACHE-limit',
-            details: [
-                { label: '模型权重', value: NumberFormatter.formatBytes(memory?.cacheLimit?.modelWeight || 0) },
-                { label: 'KV缓存', value: NumberFormatter.formatBytes(memory?.cacheLimit?.totalKVWithQPS || 0) }
-            ],
-            customStyles: {
-                borderLeft: '3px solid #8b5cf6',
-                background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.08) 0%, transparent 60%)'
-            },
-            titleColor: '#8b5cf6',
-            valueColor: '#8b5cf6'
-        });
-
-        // BW limit card - Green/Teal theme (#10b981)
-        const bwCard = this.createResultCard({
-            title: '带宽维度',
-            value: bandwidth?.bwLimit?.gpuCount || 0,
-            unit: 'GPU',
-            color: 'emerald',
-            subtitle: 'BW-limit',
-            details: [
-                { label: '高频通信', value: NumberFormatter.formatBytes(bandwidth?.bwLimit?.V_high || 0) },
-                { label: '低频通信', value: NumberFormatter.formatBytes(bandwidth?.bwLimit?.V_low || 0) }
-            ],
-            customStyles: {
-                borderLeft: '3px solid #10b981',
-                background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, transparent 60%)'
-            },
-            titleColor: '#10b981',
-            valueColor: '#10b981'
-        });
-
-        // Final recommendation card - Gold/Yellow theme (#f59e0b)
-        const finalGPUCount = Math.max(
-            flops?.limit?.gpuCount || 0,
-            memory?.cacheLimit?.gpuCount || 0,
-            bandwidth?.bwLimit?.gpuCount || 0
-        );
-        const finalCard = this.createResultCard({
-            title: '最终推荐',
-            value: finalGPUCount,
-            unit: 'GPU',
-            color: 'amber',
-            subtitle: 'N_gpu = max(...)',
-            details: [
-                { label: '算力维度', value: `${flops?.limit?.gpuCount || 0} GPU` },
-                { label: '显存维度', value: `${memory?.cacheLimit?.gpuCount || 0} GPU` },
-                { label: '带宽维度', value: `${bandwidth?.bwLimit?.gpuCount || 0} GPU` }
-            ],
-            customStyles: {
-                borderLeft: '3px solid #f59e0b',
-                background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.08) 0%, transparent 60%)'
-            },
-            titleColor: '#f59e0b',
-            valueColor: '#f59e0b'
-        });
-
-        fragment.appendChild(flopsCard);
-        fragment.appendChild(cacheCard);
-        fragment.appendChild(bwCard);
-        fragment.appendChild(finalCard);
-
+        const { flops, memory, bandwidth, config } = results;
+        
+        const flopsCount = flops?.limit?.gpuCount || 0;
+        const memoryCount = memory?.cacheLimit?.gpuCount || 0;
+        const bandwidthCount = bandwidth?.bwLimit?.gpuCount || 0;
+        const finalGPUCount = Math.max(flopsCount, memoryCount, bandwidthCount);
+        
+        const bottleneck = memoryCount >= flopsCount && memoryCount >= bandwidthCount ? 'memory' :
+                          bandwidthCount >= flopsCount && bandwidthCount >= memoryCount ? 'bandwidth' : 'flops';
+        
+        const totalFLOPs = flops?.limit?.totalFLOPsRequired || 0;
+        const singleCardFLOPs = flops?.limit?.FLOPS_percard || config?.FLOPS_percard || 0;
+        const totalMemory = (memory?.cacheLimit?.modelWeight || 0) + (memory?.cacheLimit?.totalKVWithQPS || 0);
+        const singleCardMemory = memory?.cacheLimit?.singleGpuMemory || config?.M_card || 0;
+        const totalBW = (bandwidth?.bwLimit?.V_high || 0) + (bandwidth?.bwLimit?.V_low || 0);
+        const singleCardBW = bandwidth?.bwLimit?.singleGpuBW || config?.BW_nvlink || config?.BW_net || 0;
+        
+        const container = document.createElement('div');
+        container.innerHTML = `
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <!-- 算力维度 -->
+                ${this.createCardWithFormula('算力维度', flopsCount, 'cyan', bottleneck === 'flops', [
+                    { label: '总需求', value: NumberFormatter.formatFLOPs(totalFLOPs) },
+                    { label: '单卡峰值', value: NumberFormatter.formatFLOPs(singleCardFLOPs) },
+                    { label: '计算式', value: `ceil(${NumberFormatter.formatWithSuffix(totalFLOPs, 0)}/${NumberFormatter.formatWithSuffix(singleCardFLOPs, 0)})=${flopsCount}` }
+                ])}
+                
+                <!-- 显存维度 -->
+                ${this.createCardWithFormula('显存维度', memoryCount, 'violet', bottleneck === 'memory', [
+                    { label: '总需求', value: NumberFormatter.formatBytes(totalMemory) },
+                    { label: '单卡显存', value: NumberFormatter.formatBytes(singleCardMemory) },
+                    { label: '计算式', value: `ceil(${NumberFormatter.formatWithSuffix(totalMemory, 0)}/${NumberFormatter.formatWithSuffix(singleCardMemory, 0)})=${memoryCount}` }
+                ])}
+                
+                <!-- 带宽维度 -->
+                ${this.createCardWithFormula('带宽维度', bandwidthCount, 'emerald', bottleneck === 'bandwidth', [
+                    { label: '总需求', value: NumberFormatter.formatBytes(totalBW) },
+                    { label: '单卡带宽', value: NumberFormatter.formatBytes(singleCardBW) + '/s' },
+                    { label: '计算式', value: `ceil(${NumberFormatter.formatWithSuffix(totalBW, 0)}/${NumberFormatter.formatWithSuffix(singleCardBW, 0)})=${bandwidthCount}` }
+                ])}
+                
+                <!-- 最终推荐 -->
+                ${this.createFinalCard(finalGPUCount, flopsCount, memoryCount, bandwidthCount, bottleneck)}
+            </div>
+        `;
+        
+        fragment.appendChild(container);
         return fragment;
+    }
+    
+    /**
+     * Create a card with formula display
+     */
+    static createCardWithFormula(title, value, color, isBottleneck, details) {
+        const colors = {
+            cyan: { primary: '#00d4ff', bg: 'rgba(0, 212, 255, 0.08)', border: 'rgba(0, 212, 255, 0.3)' },
+            violet: { primary: '#8b5cf6', bg: 'rgba(139, 92, 246, 0.08)', border: 'rgba(139, 92, 246, 0.3)' },
+            emerald: { primary: '#10b981', bg: 'rgba(16, 185, 129, 0.08)', border: 'rgba(16, 185, 129, 0.3)' }
+        };
+        const c = colors[color] || colors.cyan;
+        
+        const isBottleStyle = isBottleneck ? 'border-2 border-orange-400 bg-orange-500/10' : '';
+        
+        return `
+            <div class="rounded-lg p-4 border-l-3 ${isBottleStyle}" style="border-left-color: ${c.primary}; background: linear-gradient(135deg, ${c.bg} 0%, transparent 60%);">
+                <div class="flex items-center gap-2 mb-2">
+                    <svg class="w-4 h-4" style="color: ${c.primary};" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                    </svg>
+                    <span class="text-sm font-medium" style="color: ${c.primary};">${title}</span>
+                    ${isBottleneck ? '<span class="ml-auto text-xs text-orange-400 font-medium">瓶颈</span>' : ''}
+                </div>
+                <div class="flex items-baseline gap-1 mb-3">
+                    <span class="text-3xl font-bold" style="color: ${isBottleneck ? '#fb923c' : c.primary};">${value}</span>
+                    <span class="text-lg" style="color: var(--text-secondary);">GPU</span>
+                </div>
+                <div class="space-y-1 pt-2 text-xs" style="border-top: 1px solid var(--border-color);">
+                    ${details.map(d => `
+                        <div class="flex justify-between">
+                            <span style="color: var(--text-tertiary);">${d.label}</span>
+                            <span style="color: var(--text-secondary);">${d.value}</span>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    }
+    
+    /**
+     * Create final recommendation card
+     */
+    static createFinalCard(value, flopsCount, memoryCount, bandwidthCount, bottleneck) {
+        const formula = `N_gpu = max(${flopsCount}, ${memoryCount}, ${bandwidthCount}) = ${value}`;
+        
+        return `
+            <div class="rounded-lg p-4 border-l-3" style="border-left-color: #f59e0b; background: linear-gradient(135deg, rgba(245, 158, 11, 0.08) 0%, transparent 60%);">
+                <div class="flex items-center gap-2 mb-2">
+                    <svg class="w-4 h-4" style="color: #f59e0b;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    <span class="text-sm font-medium" style="color: #f59e0b;">最终推荐</span>
+                </div>
+                <div class="flex items-baseline gap-1 mb-3">
+                    <span class="text-3xl font-bold" style="color: #f59e0b;">${value}</span>
+                    <span class="text-lg" style="color: var(--text-secondary);">GPU</span>
+                </div>
+                <div class="pt-2 text-xs" style="border-top: 1px solid var(--border-color);">
+                    <div class="flex justify-between mb-1">
+                        <span style="color: var(--text-tertiary);">算力</span>
+                        <span style="color: var(--text-secondary);">${flopsCount}</span>
+                    </div>
+                    <div class="flex justify-between mb-1">
+                        <span style="color: var(--text-tertiary);">显存</span>
+                        <span style="color: var(--text-secondary);">${memoryCount}</span>
+                    </div>
+                    <div class="flex justify-between mb-2">
+                        <span style="color: var(--text-tertiary);">带宽</span>
+                        <span style="color: var(--text-secondary);">${bandwidthCount}</span>
+                    </div>
+                    <div class="pt-2" style="border-top: 1px solid var(--border-color);">
+                        <span style="color: #f59e0b;">${formula}</span>
+                    </div>
+                    <div class="mt-1 text-xs" style="color: var(--text-tertiary);">
+                        取三个维度的最大需求值
+                    </div>
+                </div>
+            </div>
+        `;
     }
     
     /**
